@@ -31,3 +31,7 @@ cd <path_file>
       ```
       git commit -m "Description of changes"
        ```
+      -Push Changes
+       ```
+        git push origin name-your-branch
+       ```
