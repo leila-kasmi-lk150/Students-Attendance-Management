@@ -19,7 +19,9 @@ export default function App() {
     <View style={styles.container}>
       <StatusBar style='auto' />
       <NavigationContainer>
-        <Tab.Navigator>
+        <Tab.Navigator
+        screenOptions={{headerShown: false}}
+        >
           <Tab.Screen
           name='Home'
           component={home}
@@ -62,5 +64,7 @@ const styles = StyleSheet.create({
   container:{
     flex: 1,
     // marginTop: Constants.statusBarHeight,
+    // tabBarShowLabel: false,
+    // headerShown: false,
   },
 });
