@@ -1,11 +1,10 @@
-import React, { Component } from 'react'
+import { View, Text } from 'react-native'
+import React from 'react'
 
-export class clas extends Component {
-  render() {
-    return (
-      <div>classes</div>
-    )
-  }
+export default function clas() {
+  return (
+    <View>
+      <Text>clas</Text>
+    </View>
+  )
 }
-
-export default clas

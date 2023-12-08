@@ -1,7 +1,10 @@
+import { View, Text } from 'react-native'
 import React from 'react'
 
 export default function home() {
   return (
-    <div>home</div>
+    <View>
+      <Text>home</Text>
+    </View>
   )
 }
