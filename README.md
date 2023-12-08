@@ -22,6 +22,7 @@ cd <path_file>
       ```
      git checkout -b name-your-branch
        ```
+ ### if you make change
   - Commit Changes
     **After you make changes to the code, commit your changes with a clear and concise message:
      ```
