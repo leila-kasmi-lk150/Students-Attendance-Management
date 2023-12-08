@@ -18,10 +18,6 @@ cd <path_file>
    ```
    cd Students-Attendance-Management
     ```
-   - Create a Branch
-      ```
-     git checkout -b name-your-branch
-       ```
  ### if you make change
   - Commit Changes
     **After you make changes to the code, commit your changes with a clear and concise message:
@@ -33,5 +29,14 @@ cd <path_file>
        ```
       -Push Changes
        ```
-        git push origin name-your-branch
+        git push origin master
        ```
+    ### Pull
+     *** if someone make changes and push it on master, you should pull the new version 
+     ```
+     git pull origin master
+      ```
+
+    > **_NOTE:_**  we will only work on the master branch, so that you so not get confused.
+    
+    
