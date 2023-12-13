@@ -1,10 +1,12 @@
 import { View, Text } from 'react-native'
 import React from 'react'
 
-export default function setting() {
+const index = () => {
   return (
     <View>
-      <Text>setting</Text>
+      <Text>index</Text>
     </View>
   )
 }
+
+export default index
