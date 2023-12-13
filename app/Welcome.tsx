@@ -1,7 +1,10 @@
 import { View, Text, Pressable, StyleSheet, Image } from 'react-native'
-import React from 'react'
+import React from 'react';
+import { useNavigation } from '@react-navigation/native';
+import Home from './screens/Home';
 
 const Welcome = () => {
+  const navigation=useNavigation();
   return (
     <View style={styles.container}>
       <Image
@@ -19,7 +22,7 @@ const Welcome = () => {
         <Text style={styles.text}>SignUp</Text>
       </Pressable>
       <Pressable style={styles.button}>
-        <Text style={styles.text}>Nafiss</Text>
+        <Text style={styles.text} onPress={() => navigation.navigate(Home as never )}>Nafiss</Text>
       </Pressable>
 
 
