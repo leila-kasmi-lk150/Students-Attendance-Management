@@ -2,7 +2,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StyleSheet, View, Text, Pressable, Image } from 'react-native';
 import Welcome from './app/Welcome';
-import index from './app/screens/index';
+import Home from './app/screens/Home';
 
 
 
@@ -24,7 +24,7 @@ export default function App() {
         />
         <Stack.Screen 
         name='Home'
-        component={index}
+        component={Home}
         options={{
           headerShown: false
         }}
