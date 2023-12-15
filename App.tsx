@@ -57,7 +57,10 @@ function InsideLayout({ user }: { user: User | null }) {
             </View>
           )}
         />
+        
       )}
+      <InsideStack.Screen name='Login' component={Login} options={{ headerShown: false }} />
+      <InsideStack.Screen name='Signup' component={Signup} options={{ headerShown: false }} />
     </InsideStack.Navigator>
   );
 }
