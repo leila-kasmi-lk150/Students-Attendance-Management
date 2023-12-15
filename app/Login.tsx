@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import React, { memo, useState } from 'react';
-import { TouchableOpacity, StyleSheet, Text, View, Image, TextInput } from 'react-native';
+import { TouchableOpacity, StyleSheet, Text, View, Image, TextInput, Alert } from 'react-native';
 import Signup from './Signup';
 import { FIREBASE_AUTH } from '../FirebaseConfig';
 import { signInWithEmailAndPassword } from 'firebase/auth';
@@ -11,14 +11,58 @@ const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const auth = FIREBASE_AUTH;
-  const navigation=useNavigation();
-  
-  const signIn = ()=>{
-    try{
-      const reponse = signInWithEmailAndPassword(auth, email, password);
+  const navigation = useNavigation();
+
+  // State for tracking input validation
+  const [emailError, setEmailError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+
+  const validateEmail = (email: string) => {
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const validatePassword = (password: string) => {
+    // Password should be at least 6 characters
+    return password.length >= 6;
+  };
+
+
+  const signIn = async() => {
+    // Reset previous error messages
+    setEmailError('');
+    setPasswordError('');
+    // Check if email is empty
+    if (!email.trim()) {
+      setEmailError('Email cannot be empty');
+      return;
+    }
+
+    // Check if password is empty
+    if (!password.trim()) {
+      setPasswordError('Password cannot be empty');
+      return;
+    }
+
+    // Validate email and password
+    if (!validateEmail(email)) {
+      setEmailError('Invalid email address');
+      return;
+    }
+
+    if (!validatePassword(password)) {
+      setPasswordError('Password should be at least 6 characters');
+      return;
+    }
+    try {
+      const reponse = await signInWithEmailAndPassword(auth, email, password);
       console.log(reponse);
-    }catch (error){
+      // Alert.alert('Welcome back', 'Sign in successful!');
+    } catch (error : any) {
       console.log(error);
+       Alert.alert('Sign in failed', 'Email or password incorrect');
+
     }
   }
 
@@ -40,6 +84,7 @@ const Login = () => {
         textContentType="emailAddress"
         keyboardType="email-address"
       />
+      {emailError ? <Text style={styles.errorText}>{emailError}</Text> : null}
 
       <View style={{ margin: 0, bottom: -25, left: -100 }}><Text>Password</Text></View>
       <TextInput
@@ -50,11 +95,11 @@ const Login = () => {
         returnKeyType="done"
         secureTextEntry
       />
-
+      {passwordError ? <Text style={styles.errorText}>{passwordError}</Text> : null}
 
 
       <TouchableOpacity style={styles.button}
-      onPress={signIn}
+        onPress={signIn}
       >
         <Text
           style={styles.text}
@@ -64,7 +109,7 @@ const Login = () => {
       <View style={styles.row}>
         <Text style={styles.label}>Don’t have an account </Text>
         <TouchableOpacity >
-          <Text style={styles.link} onPress={() => navigation.navigate(Signup as never )}>Sign up</Text>
+          <Text style={styles.link} onPress={() => navigation.navigate(Signup as never)}>Sign up</Text>
         </TouchableOpacity>
 
       </View>
@@ -128,6 +173,12 @@ const styles = StyleSheet.create({
   link: {
     fontWeight: 'bold',
     color: "#05BFDB",
+  },
+  errorText: {
+    color: 'red',
+    fontSize: 14,
+    marginBottom: 10,
+    marginLeft: 8, // Adjust the left margin for better alignment
   },
 });
 
