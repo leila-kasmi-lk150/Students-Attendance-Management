@@ -12,7 +12,7 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const auth = FIREBASE_AUTH;
   const navigation=useNavigation();
-
+  
   const signIn = ()=>{
     try{
       const reponse = signInWithEmailAndPassword(auth, email, password);

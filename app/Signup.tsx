@@ -4,7 +4,7 @@ import { TouchableOpacity, StyleSheet, Text, View, Image, TextInput, KeyboardAvo
 import Login from './Login';
 import { useNavigation } from '@react-navigation/native';
 import { FIREBASE_AUTH } from '../FirebaseConfig';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
 // import createUserWithEmailAndPassword from 'firebase/auth';
 
 
@@ -17,9 +17,9 @@ const Signup = () => {
     try{
       // const reponse = await createUserWithEmailAndPassword(auth, email, password);
       const reponse = await createUserWithEmailAndPassword(auth, email, password);
-      
+      await sendEmailVerification(reponse.user);
       console.log(reponse);
-      alert('Wolcome');
+      alert('Welcome! Please check your email for verification.');
     }catch (error){
       console.log(error);
       alert('Signup in failed');
