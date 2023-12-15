@@ -2,6 +2,8 @@ import { View, Text, Pressable, StyleSheet, Image } from 'react-native'
 import React from 'react';
 import { useNavigation } from '@react-navigation/native';
 import Home from './screens/Home';
+import Login from './Login';
+import Signup from './Signup';
 
 const Welcome = () => {
   const navigation=useNavigation();
@@ -16,14 +18,14 @@ const Welcome = () => {
         <Text style={styles.title2}> Leiknach</Text>
       </View>
       <Pressable style={styles.button}>
-        <Text style={styles.text}>Login</Text>
+        <Text style={styles.text} onPress={() => navigation.navigate(Login as never )}>Login</Text>
       </Pressable>
       <Pressable style={styles.button}>
-        <Text style={styles.text}>SignUp</Text>
+        <Text style={styles.text} onPress={() => navigation.navigate(Signup as never )}>SignUp</Text>
       </Pressable>
-      <Pressable style={styles.button}>
+      {/* <Pressable style={styles.button}>
         <Text style={styles.text} onPress={() => navigation.navigate(Home as never )}>Nafiss</Text>
-      </Pressable>
+      </Pressable> */}
 
 
     </View>
