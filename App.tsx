@@ -8,6 +8,9 @@ import Signup from './app/Signup';
 import { useEffect, useState } from 'react';
 import { User, onAuthStateChanged, sendEmailVerification } from 'firebase/auth';
 import { FIREBASE_AUTH } from './FirebaseConfig';
+import AddClass from './app/screens/AddClass';
+import EditClass from './app/screens/EditClass';
+import Group from './app/screens/Group';
 
 
 
@@ -15,7 +18,20 @@ import { FIREBASE_AUTH } from './FirebaseConfig';
 const Stack = createNativeStackNavigator();
 const InsideStack = createNativeStackNavigator();
 const LoginStack = createNativeStackNavigator();
+const HomeStack = createNativeStackNavigator();
 
+function HomeLayout() {
+  return (
+    <HomeStack.Navigator>
+      <HomeStack.Screen name='Home' component={Home} options={{ headerShown: false }} />
+      <HomeStack.Screen name='AddClass' component={AddClass} options={{ headerShown: false }} />
+      <HomeStack.Screen name='EditClass' component={EditClass} options={{ headerShown: false }} />
+      <HomeStack.Screen name='Group' component={Group} options={{ headerShown: false }} />
+    
+    
+    </HomeStack.Navigator>
+  )
+}
 function InsideLayout({ user }: { user: User | null }) {
   // Check if the user is logged in and their email is verified
   const isEmailVerified = user?.emailVerified;
@@ -25,7 +41,7 @@ function InsideLayout({ user }: { user: User | null }) {
     <InsideStack.Navigator>
       {isEmailVerified ? (
         // If email is verified, show the Home screen
-        <InsideStack.Screen name="Home" component={Home} />
+        <InsideStack.Screen name="Home" component={HomeLayout} options={{ headerShown: false }} />
       ) : (
         // If email is not verified, show a screen prompting the user to verify
         <InsideStack.Screen
@@ -73,6 +89,7 @@ function LoginLayout() {
     </LoginStack.Navigator>
   )
 }
+
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);

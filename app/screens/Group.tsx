@@ -6,17 +6,17 @@ import Icon from 'react-native-vector-icons/FontAwesome';
 import { useNavigation } from '@react-navigation/native';
 import AddClass from './AddClass';
 import EditClass from './EditClass';
-import Group from './Group';
+import Home from './Home';
 
-const Home = () => {
+const Group = () => {
   const navigation=useNavigation();
   return (
     <SafeAreaView style={{flex: 1, marginHorizontal: 16,marginTop: 45}}>
 
       {/* header  */}
       <View style={{flexDirection: 'row'}}>
-        <Text style={{flex: 1, fontSize: 25, fontWeight: '700'}}>Student Attendance</Text>        
-          <Ionicons name="ios-settings-outline" size={25} color="#05BFDB" style={{top: 15}} />
+      <Ionicons name="ios-arrow-back" size={25} color="#05BFDB" style={{ top: 10, marginRight: 15 }} onPress={() => navigation.navigate(Home as never )} />
+        <Text style={{flex: 1, fontSize: 25, fontWeight: '700'}}>Management Class</Text>        
       </View>
 
       {/* Search bar */}
@@ -27,37 +27,19 @@ const Home = () => {
       <View style={{alignItems: 'center'}}>
         <TouchableOpacity style={styles.addNewClassButton} onPress={() => navigation.navigate(AddClass as never )}>
           <Icon name="plus" size={15} color="white" style={styles.plusIcon} />
-          <Text style={styles.buttonText}>Add New Class</Text>
+          <Text style={styles.buttonText}>Add New Group</Text>
         </TouchableOpacity>
-      </View>
-      {/* class filter by year */}
-      <View style={{marginTop: 22}}>
-        <Text style={{fontSize: 22, fontWeight: 'bold',}}>College Year</Text>
-        {/* College year  */}
-        <View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {
-              clas.map((collegeYear, index)=>{
-                return (
-                <View style={{backgroundColor: index ===0 ? colors.primary : colors.light, marginRight: 36, borderRadius: 10,paddingHorizontal:16, paddingVertical: 18,shadowColor: "#000", shadowOffset:{width: 0, height:4},shadowOpacity:0.1, shadowRadius:7,marginVertical:16, }}>
-                  <Text style={{ color: index === 0 ? colors.light : colors.dark, fontSize: 18, }}> {collegeYear.collegeYear}</Text>
-                </View>
-                )
-              })
-            }
-          </ScrollView>
-        </View>
       </View>
 
 
       {/* classes */}
       <View style={{marginTop: 22}}>
        
-        <Text style={{fontSize: 22, fontWeight: 'bold',}}>Class</Text>
+        <Text style={{fontSize: 22, fontWeight: 'bold',}}>Groups</Text>
         <View>
           <FlatList data={clas} renderItem={({item })=>
               <View style={{backgroundColor: colors.light, shadowColor: "#000", shadowOffset:{width: 0, height:4},shadowOpacity:0.1, shadowRadius:7,borderRadius:16, marginVertical: 16, alignItems: 'center', }}>
-                <TouchableOpacity onPress={() => navigation.navigate(Group as never )}style={{flexDirection: 'row', paddingLeft: 20,paddingRight: 20, paddingTop:30, paddingBottom:30 }}>
+                <TouchableOpacity style={{flexDirection: 'row', paddingLeft: 20,paddingRight: 20, paddingTop:30, paddingBottom:30 }}>
                   <Text style={{flex: 1}}>{item.nameClass} {item.speciality} {item.Level}</Text>
                     <Icon name="edit" onPress={() => navigation.navigate(EditClass as never )}style={{marginRight: 10, top: 2}} size={20} color="#05BFDB" />
                     <Icon name="trash" size={20} color="#05BFDB" />
@@ -70,7 +52,7 @@ const Home = () => {
   )
 }
 
-export default Home
+export default Group
 
 const styles = StyleSheet.create({
  
