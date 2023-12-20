@@ -1,12 +1,37 @@
-import { View, Text, SafeAreaView, TextInput, StyleSheet, ScrollView, TouchableOpacity } from 'react-native'
-import React from 'react'
+import { View, Text, SafeAreaView, TextInput, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native'
+import React, { useState } from 'react'
 import { Ionicons } from '@expo/vector-icons'
 import { colors } from '../component/Constant'
 import { Icon } from 'react-native-elements'
 import { useNavigation } from '@react-navigation/native'
 import Home from './Home'
+import { FIRESTORE_DB } from '../../FirebaseConfig';
+import { addDoc, collection } from 'firebase/firestore';
 
 const AddClass = () => {
+
+  const [nameClass, setNameClass] = useState('');
+  const [speciality, setSpeciality] = useState('');
+  const [level, setLevel] = useState('');
+  const [collegeYear, setCollegeYear] = useState('');
+
+  // const addClassFunction = async () => {
+  //   try {
+  //     const classCollection = collection(FIRESTORE_DB, 'clas');
+  //     await addDoc(classCollection, {
+  //       nameClass: nameClass,
+  //       speciality: speciality,
+  //       level: level,
+  //       collegeYear: collegeYear,
+  //     });
+  //     console.log('Class added successfully!');
+  //     Alert.alert('Class added successfully!');
+  //     navigation.navigate(Home as never )
+  //   } catch (error) {
+  //     console.error('Error adding class:', error);
+  //     Alert.alert('Error adding class:');
+  //   }
+  // };
 
   const navigation=useNavigation();
   return (
@@ -23,24 +48,34 @@ const AddClass = () => {
         <TextInput
           style={styles.textInput}
           placeholder='Enter name of class'
+          onChangeText={(text) => setNameClass(text)}
+          value={nameClass}
         />
         <View style={{ margin: 0, bottom: -25, left: 9 }}><Text>Speciality</Text></View>
         <TextInput
           style={styles.textInput}
           placeholder='Enter speciality'
+          onChangeText={(text) => setSpeciality(text)}
+          value={speciality}
         />
         <View style={{ margin: 0, bottom: -25, left: 9 }}><Text>Level</Text></View>
         <TextInput
           style={styles.textInput}
           placeholder='Enter Level'
+          onChangeText={(text) => setLevel(text)}
+          value={level}
         />
         <View style={{ margin: 0, bottom: -25, left: 9 }}><Text>College Year</Text></View>
         <TextInput
           style={styles.textInput}
           placeholder='Enter college year'
+          onChangeText={(text) => setCollegeYear(text)}
+          value={collegeYear}
         />
         <View style={{flexDirection: 'row', justifyContent:'center'}}>
-        <TouchableOpacity style={styles.addNewClassButton} >
+        <TouchableOpacity style={styles.addNewClassButton} 
+        // onPress={addClassFunction}
+        >
           <Text style={styles.buttonText}>Save</Text>
         </TouchableOpacity>
         </View>
