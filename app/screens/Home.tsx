@@ -1,5 +1,5 @@
-import { View, Text, TouchableOpacity, SafeAreaView, StyleSheet,TextInput, ScrollView, FlatList } from 'react-native'
-import React from 'react'
+import { View, Text, TouchableOpacity, SafeAreaView, StyleSheet,TextInput, ScrollView, FlatList, Alert } from 'react-native'
+import React, { useState } from 'react'
 import { FontAwesome, Ionicons } from '@expo/vector-icons'
 import { clas, colors } from '../component/Constant'
 import Icon from 'react-native-vector-icons/FontAwesome';
@@ -7,10 +7,15 @@ import { useNavigation } from '@react-navigation/native';
 import AddClass from './AddClass';
 import EditClass from './EditClass';
 import Group from './Group';
+import { User} from 'firebase/auth';
+
+
+
 
 const Home = () => {
   const navigation=useNavigation();
-  return (
+  
+   return (
     <SafeAreaView style={{flex: 1, marginHorizontal: 16,marginTop: 45}}>
 
       {/* header  */}
