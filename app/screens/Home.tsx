@@ -113,6 +113,23 @@ const Home = () => {
       );
     });
   }, []);
+  // fetch data class from sqlite db
+  useEffect(() => {
+    db.transaction((tx) => {
+      tx.executeSql(
+        'SELECT * FROM table_class ORDER BY class_collegeYear DESC LIMIT 1',
+        [],
+        (tx, results) => {
+          var temp = [];
+          for (let i = 0; i < results.rows.length; ++i) {
+            console.log(results.rows.item(i));
+            temp.push(results.rows.item(i));
+          }
+          setcollegeYearClassList(temp);
+        }
+      );
+    });
+  }, []);
 
   // fetch class of college year XXXX-YYYY
   const collegeYearClass = (collegeYear: string) => {
@@ -222,6 +239,8 @@ const Home = () => {
       <View style={{ marginTop: 22, flex: 1 }}>
         <Text style={{ fontSize: 22, fontWeight: 'bold', }}>Classes</Text>
         {/* <ScrollView showsVerticalScrollIndicator={false}> */}
+
+
         {
           <FlatList
             data={collegeYearClassList}
