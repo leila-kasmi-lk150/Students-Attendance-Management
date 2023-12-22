@@ -1,5 +1,5 @@
 import { View, Text, TouchableOpacity, SafeAreaView, StyleSheet, TextInput, ScrollView, FlatList, Alert } from 'react-native'
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Ionicons } from '@expo/vector-icons'
 import { clas, colors } from '../component/Constant'
 import Icon from 'react-native-vector-icons/FontAwesome';
@@ -8,9 +8,24 @@ import AddClass from './AddClass';
 import EditClass from './EditClass';
 import Group from './Group';
 import Modal from 'react-native-modal';
+import * as Sqlite from 'expo-sqlite';
 
 const Home = () => {
+  let db = Sqlite.openDatabase('Leiknach.db');
   const navigation = useNavigation();
+  const [nameClass, setNameClass] = useState('');
+  const [speciality, setSpeciality] = useState('');
+  const [level, setLevel] = useState('');
+  const [collegeYear, setCollegeYear] = useState('');
+
+  interface ClassItem {
+    class_id: number;
+    class_name: string;
+    class_speciality: string;
+    class_level: string;
+    class_collegeYear: string;
+  }
+  const [classList, setClassList] = useState<ClassItem[]>([]);
   // const for model section add and edit
   // Model for add new class 
   const [isModalVisible, setModalVisible] = useState(false);
@@ -26,12 +41,82 @@ const Home = () => {
   };
   // Handel const for add new class
   const handleSave = () => {
+    addClass();
     toggleModal();
+    // navigation.navigate(Home as never )
   };
   const handleSaveEdit = () => {
     toggleEditModal();
   };
 
+  // data base functions
+  useEffect(() => {
+    db.transaction((txn) => {
+      // create table class 
+      txn.executeSql(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='table_class'",
+        [],
+        (tx, res) => {
+          console.log('item:', res.rows.length);
+          if (res.rows.length == 0) {
+            txn.executeSql('DROP TABLE IF EXISTS table_class', []);
+            txn.executeSql(
+              'CREATE TABLE IF NOT EXISTS table_class(class_id INTEGER PRIMARY KEY AUTOINCREMENT, class_name VARCHAR(20), class_speciality VARCHAR(20), class_level VARCHAR(20), class_collegeYear VARCHAR(20))',
+              []
+            );
+            console.log("create table");
+          } else {
+            console.log("Already created table");
+
+          }
+        }
+      );
+    });
+  }, []);
+
+  // Add new class to db
+  const addClass = () => {
+    db.transaction((txn) => {
+      txn.executeSql(
+        'INSERT INTO table_class( class_name, class_speciality, class_level, class_collegeYear) VALUES (?,?,?,?)',
+        [nameClass, speciality, level, collegeYear],
+        (tex, res) => {
+          if (res.rowsAffected == 1) {
+            Alert.alert('Class added successfully!');
+            console.log('class added');
+
+          } else {
+            Alert.alert('Error');
+            console.log('error');
+            console.log(res);
+          }
+        }
+      );
+    })
+  }
+
+  // fetch data class from sqlite db
+  useEffect(() => {
+    db.transaction((tx) => {
+      tx.executeSql(
+        'SELECT * FROM table_class',
+        [],
+        (tx, results) => {
+          var temp = [];
+          for (let i = 0; i < results.rows.length; ++i) {
+            console.log(results.rows.item(i));
+            temp.push(results.rows.item(i));
+          }
+          setClassList(temp);
+
+        }
+      );
+    });
+  }, []);
+
+  // fetch class of college year XXXX-YYYY
+  const collegeYearClass = (collegeYear: string) => {
+  };
   // Start
   return (
     <SafeAreaView style={styles.SafeAreaViewStyle}>
@@ -60,13 +145,29 @@ const Home = () => {
         <View style={styles.modalContent}>
           <Text style={{ fontSize: 22, fontWeight: 'bold', marginBottom: 10 }}>Add New Class</Text>
           <View><Text>Name Class</Text></View>
-          <TextInput style={styles.modalInput} placeholder='Enter Name of Class' />
+          <TextInput style={styles.modalInput}
+            placeholder='Enter Name of Class'
+            value={nameClass}
+            onChangeText={(text) => setNameClass(text)}
+          />
           <View><Text>Speciality</Text></View>
-          <TextInput style={styles.modalInput} placeholder='Enter Speciality' />
+          <TextInput style={styles.modalInput}
+            placeholder='Enter Speciality'
+            value={speciality}
+            onChangeText={(text) => setSpeciality(text)}
+          />
           <View><Text>Level</Text></View>
-          <TextInput style={styles.modalInput} placeholder='Enter Level' />
+          <TextInput style={styles.modalInput}
+            placeholder='Enter Level'
+            value={level}
+            onChangeText={(text) => setLevel(text)}
+          />
           <View><Text>College Year</Text></View>
-          <TextInput style={styles.modalInput} placeholder='Enter College Year' />
+          <TextInput style={styles.modalInput}
+            placeholder='Enter College Year'
+            value={collegeYear}
+            onChangeText={(text) => setCollegeYear(text)}
+          />
           <View style={styles.buttonEdit}>
             <TouchableOpacity onPress={handleSave} style={styles.modalButton}>
               <Text style={styles.buttonTexts}>Save</Text>
@@ -83,10 +184,10 @@ const Home = () => {
         <View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             {
-              clas.map((collegeYear, index) => {
+              classList.map((collegeYear, index) => {
                 return (
                   <View style={{ backgroundColor: index === 0 ? colors.primary : colors.light, marginRight: 36, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 18, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 7, marginVertical: 16, }}>
-                    <Text style={{ color: index === 0 ? colors.light : colors.dark, fontSize: 18, }}> {collegeYear.collegeYear}</Text>
+                    <Text style={{ color: index === 0 ? colors.light : colors.dark, fontSize: 18, }} onPress={() => collegeYearClass(collegeYear.class_collegeYear)}> {collegeYear.class_collegeYear}</Text>
                   </View>
                 )
               })
@@ -100,18 +201,22 @@ const Home = () => {
       <View style={{ marginTop: 22 }}>
         <Text style={{ fontSize: 22, fontWeight: 'bold', }}>Class</Text>
         <ScrollView showsVerticalScrollIndicator={false}>
-          <FlatList data={clas} renderItem={({ item }) =>
-            <View style={{ backgroundColor: colors.light, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 7, borderRadius: 16, marginVertical: 16, alignItems: 'center', }}>
-              <TouchableOpacity onPress={() => navigation.navigate(Group as never)} style={{ flexDirection: 'row', paddingLeft: 20, paddingRight: 20, paddingTop: 30, paddingBottom: 30 }}>
-                <Text style={{ flex: 1 }}>{item.nameClass} {item.speciality} {item.Level}</Text>
-                <Icon name="edit" style={{ marginRight: 10, top: 2 }} size={20} color="#05BFDB"
-                  onPress={() => {
-                    setModalEditVisible(true); // Open the modal
-                  }} />
-                <Icon name="trash" size={20} color="#05BFDB" />
-              </TouchableOpacity>
-            </View>
-          } />
+          {
+            classList.map((item, index) => {
+              return (
+                <View style={{ backgroundColor: colors.light, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 7, borderRadius: 16, marginVertical: 16, alignItems: 'center', }}>
+                  <TouchableOpacity onPress={() => navigation.navigate(Group as never)} style={{ flexDirection: 'row', paddingLeft: 20, paddingRight: 20, paddingTop: 30, paddingBottom: 30 }}>
+                    <Text style={{ flex: 1 }}>{item.class_name} {item.class_speciality} {item.class_level}</Text>
+                    <Icon name="edit" style={{ marginRight: 10, top: 2 }} size={20} color="#05BFDB"
+                      onPress={() => {
+                        setModalEditVisible(true); // Open the modal
+                      }} />
+                    <Icon name="trash" size={20} color="#05BFDB" />
+                  </TouchableOpacity>
+                </View>
+              )
+            })
+          }
         </ScrollView>
       </View>
 
@@ -149,17 +254,17 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginTop: 45
   },
-  viewSearch:{
-    backgroundColor: colors.light, 
-    flexDirection: "row", 
+  viewSearch: {
+    backgroundColor: colors.light,
+    flexDirection: "row",
     paddingVertical: 16,
     borderRadius: 10,
-    paddingHorizontal: 16, 
+    paddingHorizontal: 16,
     marginVertical: 16,
     shadowColor: colors.dark,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1, 
-    shadowRadius: 7, 
+    shadowOpacity: 0.1,
+    shadowRadius: 7,
   },
   buttonText: {
     color: 'white',
