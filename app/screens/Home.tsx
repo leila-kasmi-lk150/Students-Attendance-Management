@@ -4,11 +4,10 @@ import { Ionicons } from '@expo/vector-icons'
 import { clas, colors } from '../component/Constant'
 import Icon from 'react-native-vector-icons/FontAwesome';
 import { useNavigation } from '@react-navigation/native';
-import AddClass from './AddClass';
-import EditClass from './EditClass';
 import Group from './Group';
 import Modal from 'react-native-modal';
 import * as Sqlite from 'expo-sqlite';
+import RNPickerSelect from 'react-native-picker-select';
 
 const Home = () => {
   let db = Sqlite.openDatabase('Leiknach.db');
@@ -17,6 +16,7 @@ const Home = () => {
   const [speciality, setSpeciality] = useState('');
   const [level, setLevel] = useState('');
   const [collegeYear, setCollegeYear] = useState('');
+  const [selectedIndex, setSelectedIndex] = useState(0);
 
   interface ClassItem {
     class_id: number;
@@ -26,6 +26,7 @@ const Home = () => {
     class_collegeYear: string;
   }
   const [classList, setClassList] = useState<ClassItem[]>([]);
+  const [collegeYearClassList, setcollegeYearClassList]= useState<ClassItem[]>([]);
   // const for model section add and edit
   // Model for add new class 
   const [isModalVisible, setModalVisible] = useState(false);
@@ -108,7 +109,6 @@ const Home = () => {
             temp.push(results.rows.item(i));
           }
           setClassList(temp);
-
         }
       );
     });
@@ -116,6 +116,25 @@ const Home = () => {
 
   // fetch class of college year XXXX-YYYY
   const collegeYearClass = (collegeYear: string) => {
+    db.transaction((tx) => {
+      tx.executeSql(
+        'SELECT * FROM table_class WHERE class_collegeYear= ?',
+        [collegeYear],
+        (tx, results) => {
+          var temp = [];
+          for (let i = 0; i < results.rows.length; ++i) {
+            console.log(results.rows.item(i));
+            temp.push(results.rows.item(i));
+          }
+          setcollegeYearClassList(temp);
+
+        }
+      );
+    });
+  };
+  const [selectedClass, setSelectedClass] = useState(null);
+  const handleSelect = (value: any) => {
+    setSelectedClass(value);
   };
   // Start
   return (
@@ -168,6 +187,7 @@ const Home = () => {
             value={collegeYear}
             onChangeText={(text) => setCollegeYear(text)}
           />
+          
           <View style={styles.buttonEdit}>
             <TouchableOpacity onPress={handleSave} style={styles.modalButton}>
               <Text style={styles.buttonTexts}>Save</Text>
@@ -186,8 +206,12 @@ const Home = () => {
             {
               classList.map((collegeYear, index) => {
                 return (
-                  <View style={{ backgroundColor: index === 0 ? colors.primary : colors.light, marginRight: 36, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 18, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 7, marginVertical: 16, }}>
-                    <Text style={{ color: index === 0 ? colors.light : colors.dark, fontSize: 18, }} onPress={() => collegeYearClass(collegeYear.class_collegeYear)}> {collegeYear.class_collegeYear}</Text>
+                  <View style={{ backgroundColor: selectedIndex === index ? colors.primary : colors.light, marginRight: 36, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 18, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 7, marginVertical: 16, }}>
+                    <Text style={{ color: selectedIndex === index ? colors.light : colors.dark, fontSize: 18, }}
+                    onPress={() => {
+                      setSelectedIndex(index);
+                      collegeYearClass(collegeYear.class_collegeYear);
+                    }}> {collegeYear.class_collegeYear}</Text>
                   </View>
                 )
               })
@@ -198,26 +222,33 @@ const Home = () => {
 
 
       {/* classes */}
-      <View style={{ marginTop: 22 }}>
+      <View style={{ marginTop: 22,flex: 1 }}>
         <Text style={{ fontSize: 22, fontWeight: 'bold', }}>Class</Text>
-        <ScrollView showsVerticalScrollIndicator={false}>
-          {
-            classList.map((item, index) => {
-              return (
-                <View style={{ backgroundColor: colors.light, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 7, borderRadius: 16, marginVertical: 16, alignItems: 'center', }}>
-                  <TouchableOpacity onPress={() => navigation.navigate(Group as never)} style={{ flexDirection: 'row', paddingLeft: 20, paddingRight: 20, paddingTop: 30, paddingBottom: 30 }}>
-                    <Text style={{ flex: 1 }}>{item.class_name} {item.class_speciality} {item.class_level}</Text>
-                    <Icon name="edit" style={{ marginRight: 10, top: 2 }} size={20} color="#05BFDB"
-                      onPress={() => {
-                        setModalEditVisible(true); // Open the modal
-                      }} />
-                    <Icon name="trash" size={20} color="#05BFDB" />
-                  </TouchableOpacity>
-                </View>
-              )
-            })
-          }
-        </ScrollView>
+        {/* <ScrollView showsVerticalScrollIndicator={false}> */}
+        {
+
+          <FlatList
+          // style={{,flex: 1}}
+            data={collegeYearClassList}
+            keyExtractor={(item) => item.class_id.toString()}
+            renderItem={({ item }) => (
+              <View style={{ backgroundColor: colors.light, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 7, borderRadius: 16, marginVertical: 16, alignItems: 'center', }}>
+                <TouchableOpacity onPress={() => navigation.navigate(Group as never)} style={{ flexDirection: 'row', paddingLeft: 20, paddingRight: 20, paddingTop: 30, paddingBottom: 30 }}>
+                  <Text style={{ flex: 1 }}>{item.class_name} {item.class_speciality} {item.class_level}</Text>
+                  <Icon name="edit" style={{ marginRight: 10, top: 2 }} size={20} color="#05BFDB"
+                    onPress={() => {
+                      setModalEditVisible(true); // Open the modal
+                    }} />
+                  <Icon name="trash" size={20} color="#05BFDB" />
+                </TouchableOpacity>
+              </View>
+            )}
+          />
+
+
+
+        }
+        {/* </ScrollView> */}
       </View>
 
       <Modal isVisible={isModalEditVisible} onBackdropPress={() => setModalEditVisible(false)} >
