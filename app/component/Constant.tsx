@@ -4,6 +4,9 @@ export const colors = {
     dark: "#000",
     dark_alt: "#262626",
 }
+export const fontSize ={
+    bigTitle: 25,
+}
 
 export const clas = [
     {
@@ -63,8 +66,8 @@ export const clas = [
         collegeYear:"2020-2021",
     },
     {
-        idClass: "04",
-        nameClass : "App Mobile",
+        idClass: "9",
+        nameClass : "Leila",
         speciality: "CS",
         Level: "L3",
         collegeYear:"2020-2021",
