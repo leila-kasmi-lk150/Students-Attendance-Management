@@ -100,7 +100,7 @@ const Home = () => {
   useEffect(() => {
     db.transaction((tx) => {
       tx.executeSql(
-        'SELECT * FROM table_class',
+        'SELECT * FROM table_class ORDER BY class_collegeYear DESC',
         [],
         (tx, results) => {
           var temp = [];
