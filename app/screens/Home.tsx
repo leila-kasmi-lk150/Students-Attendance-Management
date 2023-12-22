@@ -26,7 +26,7 @@ const Home = () => {
     class_collegeYear: string;
   }
   const [classList, setClassList] = useState<ClassItem[]>([]);
-  const [collegeYearClassList, setcollegeYearClassList]= useState<ClassItem[]>([]);
+  const [collegeYearClassList, setcollegeYearClassList] = useState<ClassItem[]>([]);
   // const for model section add and edit
   // Model for add new class 
   const [isModalVisible, setModalVisible] = useState(false);
@@ -132,10 +132,7 @@ const Home = () => {
       );
     });
   };
-  const [selectedClass, setSelectedClass] = useState(null);
-  const handleSelect = (value: any) => {
-    setSelectedClass(value);
-  };
+
   // Start
   return (
     <SafeAreaView style={styles.SafeAreaViewStyle}>
@@ -187,7 +184,7 @@ const Home = () => {
             value={collegeYear}
             onChangeText={(text) => setCollegeYear(text)}
           />
-          
+
           <View style={styles.buttonEdit}>
             <TouchableOpacity onPress={handleSave} style={styles.modalButton}>
               <Text style={styles.buttonTexts}>Save</Text>
@@ -208,10 +205,10 @@ const Home = () => {
                 return (
                   <View style={{ backgroundColor: selectedIndex === index ? colors.primary : colors.light, marginRight: 36, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 18, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 7, marginVertical: 16, }}>
                     <Text style={{ color: selectedIndex === index ? colors.light : colors.dark, fontSize: 18, }}
-                    onPress={() => {
-                      setSelectedIndex(index);
-                      collegeYearClass(collegeYear.class_collegeYear);
-                    }}> {collegeYear.class_collegeYear}</Text>
+                      onPress={() => {
+                        setSelectedIndex(index);
+                        collegeYearClass(collegeYear.class_collegeYear);
+                      }}> {collegeYear.class_collegeYear}</Text>
                   </View>
                 )
               })
@@ -222,13 +219,11 @@ const Home = () => {
 
 
       {/* classes */}
-      <View style={{ marginTop: 22,flex: 1 }}>
-        <Text style={{ fontSize: 22, fontWeight: 'bold', }}>Class</Text>
+      <View style={{ marginTop: 22, flex: 1 }}>
+        <Text style={{ fontSize: 22, fontWeight: 'bold', }}>Classes</Text>
         {/* <ScrollView showsVerticalScrollIndicator={false}> */}
         {
-
           <FlatList
-          // style={{,flex: 1}}
             data={collegeYearClassList}
             keyExtractor={(item) => item.class_id.toString()}
             renderItem={({ item }) => (
