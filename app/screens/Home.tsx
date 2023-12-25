@@ -3,24 +3,15 @@ import React, { useEffect, useState } from 'react'
 import { Ionicons } from '@expo/vector-icons'
 import { colors } from '../component/Constant'
 import Icon from 'react-native-vector-icons/FontAwesome';
-import { useNavigation } from '@react-navigation/native';
-import Group from './Group';
 import Modal from 'react-native-modal';
 import * as Sqlite from 'expo-sqlite';
 
-const Home = ({navigation}: {navigation: any}) => {
+const Home = ({ navigation }: { navigation: any }) => {
   let db = Sqlite.openDatabase('Leiknach.db');
-  // const navigation = useNavigation();
-  const [refreshKey, setRefreshKey] = useState(0);
-  const handleRefresh = () => {
-    // Increment the refreshKey to trigger a re-render
-    setRefreshKey((prevKey) => prevKey + 1);
-  };
   // const for class information
   const [nameClass, setNameClass] = useState('');
   const [speciality, setSpeciality] = useState('');
   const [level, setLevel] = useState('');
-  const [collegeYear, setCollegeYear] = useState('');
 
   // this selectedIndex const for spesific witch college year is selected and highlighted
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -51,8 +42,6 @@ const Home = ({navigation}: {navigation: any}) => {
   const handleSave = () => {
     addClass();
     toggleModal();
-    // navigation.navigate(Home as never )
-    handleRefresh();
   };
   const handleSaveEdit = () => {
     editClass();
@@ -110,15 +99,15 @@ const Home = ({navigation}: {navigation: any}) => {
   var [editClasslevel, setEditClasslevel] = useState('');
   var [editClassCollegeYear, setEditClassCollegeYear] = useState('');
   var [editClassId, setEditClassId] = useState('');
-  
+
   const getDataEditingClass = (item: any) => {
-    editClassId=item.class_id.toString();
+    editClassId = item.class_id.toString();
     setEditClassId(item.class_id);
     setEditClassName(item.class_name);
     setEditClasslevel(item.class_level);
     setEditClassSpeciality(item.class_speciality);
     setEditClassCollegeYear(item.class_collegeYear);
-    
+
   }
 
   const editClass = () => {
@@ -139,31 +128,31 @@ const Home = ({navigation}: {navigation: any}) => {
       );
     });
   };
-  
-// Delet class
-var [deleteClassId, setDeleteClassId] = useState('');
-const getDataDeleteClass = (item: any) => {
-  deleteClassId=item.class_id.toString();
-  deleteClass();
-}
-const deleteClass = () => {
-  db.transaction((txn) => {
-    txn.executeSql(
-      'DELETE FROM table_class WHERE class_id=?',
-      [deleteClassId],
-      (tx, res) => {
-        if (res.rowsAffected === 1) {
-          Alert.alert('Class deleted successfully!');
-          console.log('Class deleted');
-        } else {
-          Alert.alert('Error deleting class');
-          console.log('Error deleting class');
-          console.log(res);
+
+  // Delet class
+  var [deleteClassId, setDeleteClassId] = useState('');
+  const getDataDeleteClass = (item: any) => {
+    deleteClassId = item.class_id.toString();
+    deleteClass();
+  }
+  const deleteClass = () => {
+    db.transaction((txn) => {
+      txn.executeSql(
+        'DELETE FROM table_class WHERE class_id=?',
+        [deleteClassId],
+        (tx, res) => {
+          if (res.rowsAffected === 1) {
+            Alert.alert('Class deleted successfully!');
+            console.log('Class deleted');
+          } else {
+            Alert.alert('Error deleting class');
+            console.log('Error deleting class');
+            console.log(res);
+          }
         }
-      }
-    );
-  });
-};
+      );
+    });
+  };
 
   // fetch all data class from sqlite db
   useEffect(() => {
@@ -182,93 +171,41 @@ const deleteClass = () => {
       );
     });
   }, []);
-  // fetch the lasst data class from sqlite db
-  // useEffect(() => {
-  //   const lola= '2023-2024';
-  //   db.transaction((tx) => {
-  //     tx.executeSql(
-  //       'SELECT * FROM table_class WHERE class_collegeYear= ? ORDER BY class_collegeYear DESC ',
-  //       [lola],
-  //       (tx, results) => {
-  //         var temp = [];
-  //         for (let i = 0; i < results.rows.length; ++i) {
-  //           console.log(results.rows.item(i));
-  //           temp.push(results.rows.item(i));
-  //         }
-  //         setcollegeYearClassList(temp);
-  //         Alert.alert(lola);
 
-  //       }
-  //     );
-  //   });
-  // }, []);
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// Fetch the last collegeYear from the table
-useEffect(() => {
-  db.transaction((tx) => {
-    tx.executeSql(
-      'SELECT DISTINCT class_collegeYear FROM table_class ORDER BY class_collegeYear DESC LIMIT 1',
-      [],
-      (tx, results) => {
-        if (results.rows.length > 0) {
-          const lastCollegeYear = results.rows.item(0).class_collegeYear;
-          setCollegeYearValue(lastCollegeYear);
-
-          // Now that you have the last collegeYear, fetch the corresponding rows
-          fetchClassData(lastCollegeYear);
+  // Fetch the last collegeYear from the table
+  useEffect(() => {
+    db.transaction((tx) => {
+      tx.executeSql(
+        'SELECT DISTINCT class_collegeYear FROM table_class ORDER BY class_collegeYear DESC LIMIT 1',
+        [],
+        (tx, results) => {
+          if (results.rows.length > 0) {
+            const lastCollegeYear = results.rows.item(0).class_collegeYear;
+            setCollegeYearValue(lastCollegeYear);
+            fetchClassData(lastCollegeYear);
+          }
         }
-      }
-    );
-  });
-}, []);
+      );
+    });
+  }, []);
 
-// Fetch class data based on a specific collegeYear
-const fetchClassData = (collegeYear: any) => {
-  db.transaction((tx) => {
-    tx.executeSql(
-      'SELECT * FROM table_class WHERE class_collegeYear=? ORDER BY class_collegeYear DESC',
-      [collegeYear],
-      (tx, results) => {
-        var temp = [];
-        for (let i = 0; i < results.rows.length; ++i) {
-          console.log(results.rows.item(i));
-          temp.push(results.rows.item(i));
+  // Fetch class data based on a specific collegeYear
+  const fetchClassData = (collegeYear: any) => {
+    db.transaction((tx) => {
+      tx.executeSql(
+        'SELECT * FROM table_class WHERE class_collegeYear=? ORDER BY class_collegeYear DESC',
+        [collegeYear],
+        (tx, results) => {
+          var temp = [];
+          for (let i = 0; i < results.rows.length; ++i) {
+            console.log(results.rows.item(i));
+            temp.push(results.rows.item(i));
+          }
+          setcollegeYearClassList(temp);
         }
-        setcollegeYearClassList(temp);
-      }
-    );
-  });
-};
-
-
-
-
-
-
-
-
-
-
+      );
+    });
+  };
   // fetch class of college year XXXX-YYYY
   const collegeYearClass = (collegeYear: string) => {
     db.transaction((tx) => {
@@ -397,8 +334,11 @@ const fetchClassData = (collegeYear: any) => {
             renderItem={({ item }) => (
               <View style={{ backgroundColor: colors.light, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 7, borderRadius: 16, marginVertical: 16, alignItems: 'center', }}>
                 {/* When cilck in this view, It will be navigate to goups of this class */}
-                <TouchableOpacity 
-onPress={() => navigation.navigate('Group', { class_id: item.class_id.toString() })}                style={{ flexDirection: 'row', paddingLeft: 20, paddingRight: 20, paddingTop: 30, paddingBottom: 30 }}>
+                <TouchableOpacity
+                  onPress={() => navigation.navigate('Group',
+                   { class_id: item.class_id.toString(), class_name:item.class_name , class_speciality:item.class_speciality, class_level:item.class_level })}
+                  style={{ flexDirection: 'row', paddingLeft: 20, paddingRight: 20, paddingTop: 30, paddingBottom: 30 }}
+                >
                   <Text style={{ flex: 1 }}>{item.class_name} {item.class_speciality} {item.class_level}</Text>
                   {/* EDIT CLASS ICON */}
                   <Icon name="edit" style={{ marginRight: 10, top: 2 }} size={20} color="#05BFDB"
@@ -406,17 +346,14 @@ onPress={() => navigation.navigate('Group', { class_id: item.class_id.toString()
                       setModalEditVisible(true); // Open the modal
                       getDataEditingClass(item); // Set the class to be edited
                     }} />
-                  <Icon name="trash" size={20} color="#05BFDB" 
-                  onPress={()=>{
-                    getDataDeleteClass(item);
-                  }}/>
+                  <Icon name="trash" size={20} color="#05BFDB"
+                    onPress={() => {
+                      getDataDeleteClass(item);
+                    }} />
                 </TouchableOpacity>
               </View>
             )}
           />
-
-
-
         }
       </View>
 
@@ -425,22 +362,22 @@ onPress={() => navigation.navigate('Group', { class_id: item.class_id.toString()
         <View style={styles.modalContent}>
           <Text style={{ fontSize: 22, fontWeight: 'bold', marginBottom: 10 }}>Edit Class Class</Text>
           <View><Text>Name Class</Text></View>
-          <TextInput style={styles.modalInput} 
-          value={editClassName}
-        onChangeText={(text) => setEditClassName(text)}
-           />
+          <TextInput style={styles.modalInput}
+            value={editClassName}
+            onChangeText={(text) => setEditClassName(text)}
+          />
           <View><Text>Speciality</Text></View>
-          <TextInput style={styles.modalInput} 
-          value={editClassSpeciality}
-        onChangeText={(text) => setEditClassSpeciality(text)} />
+          <TextInput style={styles.modalInput}
+            value={editClassSpeciality}
+            onChangeText={(text) => setEditClassSpeciality(text)} />
           <View><Text>Level</Text></View>
-          <TextInput style={styles.modalInput} 
-          value={editClasslevel}
-        onChangeText={(text) => setEditClasslevel(text)} />
+          <TextInput style={styles.modalInput}
+            value={editClasslevel}
+            onChangeText={(text) => setEditClasslevel(text)} />
           <View><Text>College Year</Text></View>
-          <TextInput style={styles.modalInput} 
-          value={editClassCollegeYear}
-        onChangeText={(text) => setEditClassCollegeYear(text)} />
+          <TextInput style={styles.modalInput}
+            value={editClassCollegeYear}
+            onChangeText={(text) => setEditClassCollegeYear(text)} />
           <View style={styles.buttonEdit}>
             <TouchableOpacity onPress={handleSaveEdit} style={styles.modalButton}>
               <Text style={styles.buttonTexts}>Save</Text>
