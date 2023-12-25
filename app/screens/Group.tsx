@@ -270,10 +270,10 @@ const Group = ({ route }: { route: any }) => {
       </Modal>
 
       {/* classes */}
-      <View style={{ marginTop: 22 }}>
+      <View style={{ marginTop: 22, flex: 1 }}>
 
         <Text style={{ fontSize: 22, fontWeight: 'bold', }}>Groups</Text>
-        <View>
+        <View style={{ flex: 1 }}>
           <FlatList data={groupList} renderItem={({ item }) =>
             <View style={{ backgroundColor: colors.light, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 7, borderRadius: 16, marginVertical: 16, alignItems: 'center', }}>
               <TouchableOpacity style={{ flexDirection: 'row', paddingLeft: 20, paddingRight: 20, paddingTop: 30, paddingBottom: 30 }}>
