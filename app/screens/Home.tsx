@@ -8,9 +8,9 @@ import Group from './Group';
 import Modal from 'react-native-modal';
 import * as Sqlite from 'expo-sqlite';
 
-const Home = () => {
+const Home = ({navigation}: {navigation: any}) => {
   let db = Sqlite.openDatabase('Leiknach.db');
-  const navigation = useNavigation();
+  // const navigation = useNavigation();
   const [refreshKey, setRefreshKey] = useState(0);
   const handleRefresh = () => {
     // Increment the refreshKey to trigger a re-render
@@ -397,7 +397,8 @@ const fetchClassData = (collegeYear: any) => {
             renderItem={({ item }) => (
               <View style={{ backgroundColor: colors.light, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 7, borderRadius: 16, marginVertical: 16, alignItems: 'center', }}>
                 {/* When cilck in this view, It will be navigate to goups of this class */}
-                <TouchableOpacity onPress={() => navigation.navigate(Group as never)} style={{ flexDirection: 'row', paddingLeft: 20, paddingRight: 20, paddingTop: 30, paddingBottom: 30 }}>
+                <TouchableOpacity 
+onPress={() => navigation.navigate('Group', { class_id: item.class_id.toString() })}                style={{ flexDirection: 'row', paddingLeft: 20, paddingRight: 20, paddingTop: 30, paddingBottom: 30 }}>
                   <Text style={{ flex: 1 }}>{item.class_name} {item.class_speciality} {item.class_level}</Text>
                   {/* EDIT CLASS ICON */}
                   <Icon name="edit" style={{ marginRight: 10, top: 2 }} size={20} color="#05BFDB"
