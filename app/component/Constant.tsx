@@ -3,6 +3,7 @@ export const colors = {
     light: "#fff",
     dark: "#000",
     dark_alt: "#262626",
+    gray: 'gray',
 }
 export const fontSize ={
     bigTitle: 25,

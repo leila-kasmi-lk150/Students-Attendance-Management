@@ -1,334 +1,362 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, FlatList, TextInput,ImageBackground  } from 'react-native';
-import Icon from 'react-native-vector-icons/FontAwesome';
+import { Alert, StyleSheet, Text, TouchableOpacity, View, TextInput, FlatList } from 'react-native'
+import React, { useEffect, useState } from 'react'
+import { SafeAreaView } from 'react-native-safe-area-context'
 import Modal from 'react-native-modal';
-import FontAwesomeIcon from 'react-native-vector-icons/FontAwesome';
-import { useNavigation } from '@react-navigation/native';
-import AddMember from './AddMember';
+import { Ionicons } from '@expo/vector-icons';
+import Icon from 'react-native-vector-icons/FontAwesome';
+import { colors } from '../component/Constant';
+import * as Sqlite from 'expo-sqlite';
+import Papa from 'papaparse';
+// import * as XLSX from 'xlsx';
+import * as DocumentPicker from 'expo-document-picker';
+import * as RNFS from 'react-native-fs';
+import XLSX from 'xlsx';
+import * as FileSystem from 'expo-file-system';
 
-const Member = () => {
-  const [classesData, setClassesData] = useState([
-    { id: '1', name: 'Marwa ben ' },
-    { id: '2', name: ' aymen bou' },
-    { id: '3', name: 'sara Ik ' },
-   
-  ]);
-  const navigation = useNavigation();
+const Membre = ({ route, navigation }: { route: any, navigation: any }) => {
+  let db = Sqlite.openDatabase('Leiknach.db');
+  const { class_id } = route.params;
+  const { class_name } = route.params;
+  const { class_speciality } = route.params;
+  const { class_level } = route.params;
+  const { group_id } = route.params;
+  const { group_name } = route.params;
+  const { group_type } = route.params;
+  const [studentFirstName, setStudentFirstName] = useState('');
+  const [studentLastName, setStudentLastName] = useState('');
+  interface StudentItem {
+    student_id: string;
+    student_firstName: string;
+    student_lastName: string;
+    class_id: number;
+    group_id: number;
 
- 
+  }
+  const [studentList, setStudentList] = useState<StudentItem[]>([]);
+
   const [isModalVisible, setModalVisible] = useState(false);
-  const [editingGroup, setEditingGroup] = useState({ id: '', name: '' });
-
+  // Toggle model for add new student
   const toggleModal = () => {
     setModalVisible(!isModalVisible);
   };
-
-  const handleSortButtonPress = () => {
-    // Sort the classes alphabetically based on the 'name' property
-    const sortedClasses = [...classesData].sort((a, b) => a.name.localeCompare(b.name));
-    setClassesData(sortedClasses);
-  };
-
-  const handleSaveEdit = () => {
-    // Implement your logic to save the edited class
-    const updatedClasses = classesData.map((item) =>
-      item.id === editingGroup.id ? { ...item, name: editingGroup.name } : item
-    );
-    setClassesData(updatedClasses);
+  // Handel const for add new student
+  const handleSave = () => {
+    addStudent();
     toggleModal();
   };
+  // Database functions
+  useEffect(() => {
+    db.transaction((txn) => {
+      // Create the table 'table_student'
+      txn.executeSql(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='table_students'",
+        [],
+        (tx, res) => {
+          console.log('item:', res.rows.length);
+          if (res.rows.length === 0) {
+            txn.executeSql('DROP TABLE IF EXISTS table_students', []);
+            txn.executeSql(
+              'CREATE TABLE IF NOT EXISTS table_students (student_id INTEGER PRIMARY KEY AUTOINCREMENT, student_firstName TEXT NOT NULL,student_lastName TEXT NOT NULL, class_id INTEGER, group_id INTEGER, FOREIGN KEY (class_id) REFERENCES table_class(class_id) ON DELETE CASCADE, FOREIGN KEY (group_id) REFERENCES table_group(group_id) ON DELETE CASCADE)', // Closing parenthesis was added here
+              []
+            );
+            console.log('Created table_student');
+          } else {
+            console.log('Table_student already exists');
+          }
+        }
+      );
+    });
+  }, []);
+
+  // Add new student one by one
+  const addStudent = () => {
+    db.transaction((txn) => {
+      txn.executeSql(
+        'INSERT INTO table_students( student_firstName,student_lastName, class_id, group_id) VALUES (?,?,?,?)',
+        [studentFirstName, studentLastName, class_id, group_id],
+        (tex, res) => {
+          if (res.rowsAffected == 1) {
+            Alert.alert('Student added successfully!');
+            console.log('student added');
+
+          } else {
+            Alert.alert('Error');
+            console.log('error');
+            console.log(res);
+          }
+        }
+      );
+    })
+  }
+
+  // fetch all data student from sqlite db
+  useEffect(() => {
+    db.transaction((tx) => {
+      tx.executeSql(
+        'SELECT * FROM table_students WHERE group_id=?',
+        [group_id],
+        (tx, results) => {
+          var temp = [];
+          for (let i = 0; i < results.rows.length; ++i) {
+            console.log(results.rows.item(i));
+            temp.push(results.rows.item(i));
+          }
+          setStudentList(temp);
+        }
+      );
+    });
+  }, []);
+
+  // import XLSX from 'xlsx';
+
+
+  const importExcelData = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+  
+      if (!result.canceled) {
+        const fileUri = result.assets[0].uri;
+        const fileContent = await FileSystem.readAsStringAsync(fileUri, {
+          encoding: FileSystem.EncodingType.UTF8,
+          type: 'BINARY' as any, // Type assertion
+        });
+  
+        const workbook = XLSX.read(fileContent, { type: 'binary' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+  
+        const expectedColumns = ['A', 'B', 'C']; // Adjust as needed
+        const actualColumns = Object.keys(worksheet);
+  
+        if (!expectedColumns.every((col, index) => actualColumns[index] === col)) {
+          console.error('Invalid file format. Please check the column order.');
+          return;
+        }
+  
+        const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as (string | number)[][];
+        rows.slice(1).forEach(async (row) => {
+          const [_, lastName, firstName] = row as [string, string, string]; // Assuming the order is: ID, LastName, FirstName
+          // Add more validation if needed
+  
+          await db.transaction((txn) => {
+            txn.executeSql(
+              'INSERT INTO table_students (student_firstName, student_lastName, class_id, group_id) VALUES (?,?,?,?)',
+              [firstName, lastName, class_id, group_id],
+              (_, res) => {
+                console.log('Data inserted successfully.');
+              },
+              // (error) => {
+              //   console.error('Error inserting data:', error);
+              // }
+            );
+          });
+        });
+      }
+    } catch (error) {
+      console.error('Error picking document:', error);
+    }
+  };
+  
+
+
+
+
+
 
   return (
-    <View style={styles.container}>
-      {/* Header with logo */}
-      
-      <View style={styles.header}>
-        <Text style={styles.logo}>MEMBERS</Text>
-        <FontAwesomeIcon name="users" size={30} color="#f2f2f2" style={styles.membersIcon} />
-      </View>
-      <View><Text style={styles.title}>Management ISI M1 </Text>
-      <Text style={styles.title}>          GROUP 1</Text></View>
-      <View style={styles.searchContainer}>
-        <TextInput style={styles.searchInput} placeholder="Search member" />
-        <FontAwesomeIcon name="search" size={20} color="#3A4D39" style={styles.searchIcon} />
-      
-      </View>
-
-    
-      
-      {/* Body with classes and add new class button */}
-      <View style={styles.body}>
-      <View style={styles.classesOrder}>
-        <Text style={styles.text}>Members</Text>
-
-        {/* Sort button with icon */}
-        <TouchableOpacity style={styles.sortButton} onPress={handleSortButtonPress}>
-          <Icon name="sort-alpha-asc" size={20} color="#fff" />
-        </TouchableOpacity>
-       </View>
-        {/* Add new class button */}
-        <TouchableOpacity style={styles.addNewClassButton}onPress={() => navigation.navigate(AddMember as never )}>
-          <Icon name="plus" size={15} color="#3A4D39" style={styles.plusIcon} />
-          <Text style={styles.buttonText}>Add  Member</Text>
-        </TouchableOpacity>
-
-        {/* List of classes */}
-        <FlatList
-          data={classesData}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-           
-            <View style={styles.class}>
-              <Text style={styles.textclass}>{item.name}</Text>
-              <View style={styles.iconContainer}>
-              <FontAwesomeIcon name="user" size={23} color="#454545" style={styles.userIcon} />
-              <TouchableOpacity onPress={() => {
-    setEditingGroup(item); // Set the class to be edited
-    setModalVisible(true); // Open the modal
-}}   >
-                <Icon name="edit" size={20} color="#333" />
-              </TouchableOpacity>
-              <TouchableOpacity>
-                <Icon name="trash" size={20} color="#333" />
-              </TouchableOpacity>
-              </View>
-            </View>
-           
-          )}
+    <SafeAreaView style={{ flex: 1, marginHorizontal: 16, marginTop: 20 }}>
+      {/* header  */}
+      <View style={{ flexDirection: 'row' }}>
+        <Ionicons name="ios-arrow-back" size={25} color="#05BFDB" style={{ top: 10, marginRight: 15 }}
+          onPress={() => navigation.navigate('Group',
+            { class_id: class_id, class_name: class_name, class_speciality: class_speciality, class_level: class_level })}
         />
+        <Text style={{ flex: 1, fontSize: 25, fontWeight: '700' }}>{class_name} {group_name} {group_type}</Text>
       </View>
 
-      {/* Edit Class Modal */}
+      {/* Search bar */}
+      <View style={{ backgroundColor: "#fff", flexDirection: "row", paddingVertical: 16, borderRadius: 10, paddingHorizontal: 16, marginVertical: 16, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 7, }}>
+        <Ionicons name="search-outline" size={24} color="#05BFDB" />
+        <TextInput style={{ paddingLeft: 8, fontSize: 16, }} placeholder='Search for Student...'></TextInput>
+      </View>
+
+      {/* Add new student */}
+      <View style={{ alignItems: 'center' }}>
+        <TouchableOpacity style={styles.addNewClassButton} onPress={() => {
+          setModalVisible(true); // Open add student modal
+        }}>
+          <Icon name="plus" size={15} color="white" style={styles.plusIcon} />
+          <Text style={styles.buttonText}>Add New Student</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Add New Student Modal */}
       <Modal isVisible={isModalVisible} onBackdropPress={() => setModalVisible(false)} >
-        <View style={styles.modalContent}>
-          <Text>Edit Group</Text>
-          <TextInput
-            style={styles.modalInput}
-            value={editingGroup.name}
-            onChangeText={(text) => setEditingGroup((prev) => ({ ...prev, name: text }))}
+        <View style={[styles.modalContent]}>
+          <Text style={{ fontSize: 22, fontWeight: 'bold', marginBottom: 10 }}>Add New Student</Text>
+          <View><Text>Surname:</Text></View>
+          <TextInput style={[styles.modalInput, { width: '100%' }]}
+            placeholder='Enter Surname of Student'
+            value={studentLastName}
+            onChangeText={(text) => setStudentLastName(text)}
           />
-          <TouchableOpacity onPress={handleSaveEdit} style={styles.modalButton}>
-            <Text style={styles.buttonText}>Save</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={toggleModal} style={styles.modalButton}>
-            <Text style={styles.buttonText}>Close</Text>
-          </TouchableOpacity>
+          <View><Text>First Name:</Text></View>
+          <TextInput style={[styles.modalInput, { width: '100%' }]}
+            placeholder='Enter First Name of Student'
+            value={studentFirstName}
+            onChangeText={(text) => setStudentFirstName(text)}
+          />
+          <View style={{ alignItems: 'center' }}>
+            <View style={styles.ORcontainer}>
+              <View style={styles.line} />
+              <Text style={styles.orText}>OR</Text>
+              <View style={styles.line} />
+            </View>
+            <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 25 }} onPress={() => {
+              importExcelData()
+            }}>
+              <Ionicons name="ios-folder-open-outline" size={25} color={colors.gray} style={{ marginRight: 5, top: 1, }} />
+              <Text style={[{ fontSize: 15, }, { color: colors.gray }]}>Import csv file</Text>
+              {/* <Ionicons name="ios-folder-open-outline" size={25} color={colors.gray} style={{ marginLeft: 5, top: 1, }} /> */}
+
+            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', }}>
+              <TouchableOpacity onPress={handleSave} style={[{ backgroundColor: colors.primary, padding: 10, borderRadius: 5, marginTop: 10, alignItems: 'center', margin: 3, }]}>
+                <Text style={styles.buttonTexts}>Save</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={toggleModal} style={[{
+                backgroundColor: colors.primary, padding: 10, borderRadius: 5, marginTop: 10, alignItems: 'center', margin: 3,
+              }]}>
+                <Text style={styles.buttonTexts}>Close</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
       </Modal>
-      <View style={styles.footer}>
-        <TouchableOpacity style={styles.bottomButton}>
-        <FontAwesomeIcon name="hand-paper-o" size={20} color="#fff" style={styles.buttonIcon} />
-          <Text style={styles.bottomText}>Presence</Text>
-        </TouchableOpacity>
+
+      {/* List of Student */}
+      <View style={{ marginTop: 22, flex: 1 }}>
+
+        <Text style={{ fontSize: 22, fontWeight: 'bold', }}>List of Student</Text>
+        <View style={{ flex: 1 }}>
+          <FlatList data={studentList} renderItem={({ item }) =>
+            <View style={{ backgroundColor: colors.light, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 7, borderRadius: 16, marginVertical: 16, alignItems: 'center', }}>
+              <TouchableOpacity
+                // onPress={() => navigation.navigate('NavigateMember', 
+                // { group_id: item.group_id, group_name: item.group_name,group_type: item.group_type, class_id: class_id, class_name:class_name , class_speciality:class_speciality, class_level:class_level })}
+
+                style={{ flexDirection: 'row', paddingLeft: 20, paddingRight: 20, paddingTop: 30, paddingBottom: 30 }}
+              >
+                <Text style={{ flex: 1 }}>{item.student_firstName} {item.student_lastName}</Text>
+                <Icon name="edit"
+                  onPress={() => {
+                    // setModalEditVisible(true); // Open the modal
+                    // getDataEditingGroup(item); // Set the GROUP to be edited
+                  }}
+                  style={{ marginRight: 10, top: 2 }} size={20} color="#05BFDB" />
+                <Icon name="trash" size={20} color="#05BFDB"
+                  onPress={() => {
+                    // getDataDeleteGroup(item);
+                  }} />
+              </TouchableOpacity>
+            </View>
+          } />
+        </View>
       </View>
-     
-    </View>
-  );
-};
+    </SafeAreaView>
+  )
+}
+
+export default Membre
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    top: 40,
-    backgroundColor:'#ECE3CE',
-  }, 
-  buttonIcon: {
-    marginRight: 5,
-    left:110,
-    
-  },
-  footer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#3A4D39',
-    padding: 10,
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
-    alignItems: 'center',
-    height:100,
-    
-  },
-  bottomButton: {
-    backgroundColor: 'transparent',
-    padding: 10,
-    borderRadius: 5,
-  },
-  bottomText:{
-    fontSize: 25,
-    fontWeight: 'bold',
-    color: '#fff',
-    top:-28,
-    
-  },
-  header: {
+  ORcontainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 10,
-    backgroundColor: '#3A4D39',
-    height:75,
-    borderBottomEndRadius:30,
-    borderBottomLeftRadius:30,
+    marginVertical: 10,
   },
-  title:{
-    flexDirection: 'row', // Use flexDirection to align icon and text horizontally
-    alignItems: 'center',
-    fontSize: 25,
-    fontWeight: 'bold',
-    color: '#3A4D39',
-    left:70,
-    top:20,
-  },
-  logo: {
-    flexDirection: 'row', // Use flexDirection to align icon and text horizontally
-    alignItems: 'center',
-    fontSize: 30,
-    fontWeight: 'bold',
-    color: '#f2f2f2',
-    left:40,
-  },
-  homeIcon: {
-    marginRight: 5,
-    
-  },
-  searchContainer: {
+  line: {
     flex: 1,
-    justifyContent: 'center',
-    marginLeft: 20,
-    top:-100,
-    
- },
- searchInput: {
-  backgroundColor: '#fff',
-  padding: 10,
-  borderRadius: 10,
-  marginTop: 5,
-  width: '95%',
-  paddingRight: 35, // add padding to the right to prevent text overlap with search icon
-  position: 'absolute',
-  borderBottomWidth:2,
- },
- searchIcon: {
-  position: 'absolute',
-  right: 30,
-  
- },
-  body: {
-   
-    top: -150,
-    padding: 20,
-    backgroundColor: '#fff',
-    borderLeftColor:"#3A4D39",
-    borderLeftWidth:3,
-    borderLeftHeight:50,
-    width:"80%",
-    left:40,
-    borderRadius:20,
-    alignContent:"center",
+    height: 2,
+    backgroundColor: colors.primary,
   },
-  addClassButton: {
-    backgroundColor: '#4caf50',
+  orText: {
+    marginHorizontal: 10,
+    color: colors.dark,
+  },
+  addNewClassButton: {
+    backgroundColor: colors.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
     padding: 10,
     marginBottom: 10,
-    borderRadius: 5,
+    borderRadius: 10,
+    width: 250,
+    // left: 30,
+  },
+  plusIcon: {
+    marginRight: 5,
+    left: 20,
+    top: 1,
   },
   buttonText: {
-    color: '#3A4D39',
-    left:30,
-    fontSize:15,
+    color: 'white',
+    left: 30,
+    fontSize: 15,
     fontWeight: 'bold',
-  },
-  class: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    padding: 10,
-    marginBottom: 5,
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 5,
-  },
-  textclass:{
-    fontSize:15,
-    left:20,
-  },
-  text:{
-    fontSize: 25,
-    fontWeight: 'bold',
-    color: '#fff',
-    left:95,
-  },
-  classesOrder:{
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#3A4D39',
-    top:-20,
-    left:-20,
-    width:287,
-    borderTopLeftRadius:15,
-    borderTopRightRadius:15,
   },
   modalContent: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.light,
     padding: 20,
     borderRadius: 5,
   },
   modalInput: {
     height: 40,
     borderColor: 'gray',
+    backgroundColor: '#fff',
     borderWidth: 1,
     marginBottom: 20,
     paddingHorizontal: 10,
-    borderRadius: 5,
+    borderRadius: 10,
+  },
+  buttonEdit: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    // width: 100,
   },
   modalButton: {
-    backgroundColor: '#4caf50',
+    backgroundColor: colors.primary,
     padding: 10,
     borderRadius: 5,
     marginTop: 10,
     alignItems: 'center',
+    margin: 3,
+    left: 16,
   },
-  sortButton: {
+  modalButtonAdd: {
+    backgroundColor: colors.primary,
     padding: 10,
-    marginBottom: 10,
     borderRadius: 5,
+    marginTop: 10,
     alignItems: 'center',
-    left:140,
-    top:5,
-    backgroundColor: 'transparent', // Transparent background
+    margin: 3,
+    left: 16,
+    width: '80%',
   },
-  addNewClassButton: {
-    backgroundColor: '#ECE3CE',
+  buttonTexts: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: 'bold',
+  },
+  importsButton: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 10,
     marginBottom: 10,
-    borderRadius: 20,
-    width:200,
-    left:30,
+    borderRadius: 10,
+    width: 250,
+    // left: 30,
   },
- 
-  plusIcon: {
-    marginRight: 5,
-    left:30,
-    top:2,
-  },
-  iconContainer: {
-    flexDirection: 'row',
-  },
-  membersIcon: {
-    marginRight: 5,
-   left:-140,
-    
-  },
-  userIcon:{
-    marginRight: 5,
-   right: 170,
-   top:-2,
-     
-  },
-});
-
-export default Member;
+})
