@@ -16,7 +16,7 @@ const Welcome = () => {
         <Text style={styles.title2}> Leiknach</Text>
       </View>
       <Pressable style={styles.button}>
-        <Text style={styles.text} onPress={() => navigation.navigate(Home as never )}>Get Start</Text>
+        <Text style={styles.text} onPress={() => navigation.navigate(Home as never )} >Get Start</Text>
       </Pressable>
     </View>
   )

@@ -1,81 +1,55 @@
-import { View, Text, Pressable, StyleSheet, Image } from 'react-native'
-import React from 'react';
-import { useNavigation } from '@react-navigation/native';
-import Home from './screens/Home';
-import Login from './Login';
-import Signup from './Signup';
+const handleImportData = async () => {
+  try {
+    const result = await DocumentPicker.getDocumentAsync({
+      type: 'application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv',
+    });
 
-const Welcome = () => {
-  const navigation=useNavigation();
-  return (
-    <View style={styles.container}>
-      <Image
-        source={require('../assets/img.png')}
-        style={styles.image}
-      />
-      <View style={styles.title}>
-        <Text style={styles.title1}> Students Attendance </Text>
-        <Text style={styles.title2}> Leiknach</Text>
-      </View>
-      <Pressable style={styles.button}>
-        <Text style={styles.text} onPress={() => navigation.navigate(Login as never )}>Login</Text>
-      </Pressable>
-      <Pressable style={styles.button}>
-        <Text style={styles.text} onPress={() => navigation.navigate(Signup as never )}>SignUp</Text>
-      </Pressable>
-      {/* <Pressable style={styles.button}>
-        <Text style={styles.text} onPress={() => navigation.navigate(Home as never )}>Nafiss</Text>
-      </Pressable> */}
+    if (!result.canceled) {
+      const fileUri = result.assets[0].uri; // Access uri from assets array
+      const fileType = fileUri.endsWith('.csv') ? 'csv' : 'xlsx'; // Use fileUri to determine file type
 
+      let firstNameIndex = -1;
+      let lastNameIndex = -1;
 
-    </View>
-  )
+      if (fileType === 'csv') {
+        // Parse CSV
+        const response = await fetch(fileUri);
+        const csvString = await response.text();
+        const csvData = Papa.parse(csvString);
 
+        // Find the column indices for first and last names
+        if (csvData.data.length > 0) {
+          // Assuming the type of csvData.data is string[][]
+          const headerRow: string[] = (csvData.data[0] as string[]) || [];
+          firstNameIndex = headerRow.findIndex((col) => col.toLowerCase().includes('first'));
+          lastNameIndex = headerRow.findIndex((col) => col.toLowerCase().includes('last'));
+        }
 
-}
+        // Insert data into the database
+        db.transaction((txn) => {
+          for (let i = csvData.data.length - 1; i >= 0; i--) {
+            // const row = csvData.data[i];
+            const row: string[] = (csvData.data[i] as string[]) || [];
 
-export default Welcome
-
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  // separator: {
-  //   marginTop: 1,
-  // },
-
-  text: {
-    color: "white",
-  },
-  button: {
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    width: "80%",
-    // top: -100,
-    backgroundColor: "#05BFDB",
-    marginTop: 8,
-    borderRadius: 32,
-    alignItems: "center",
-
-  },
-  image: {
-    width: 300,
-    height: 300,
-    resizeMode: 'contain', // Adjust the resizeMode based on your image requirements
-    marginBottom: 0,
-  },
-  title:{
-    marginBottom: 40,
-    alignItems: 'center',
-  },
-  title1:{
-    fontWeight: 'bold',
-    fontSize: 25
-  },
-  title2:{
-    fontWeight: 'bold',
+            // Additional check for non-empty, non-undefined values
+            if (row[firstNameIndex] !== undefined && row[lastNameIndex] !== undefined && row[firstNameIndex] !== '' && row[lastNameIndex] !== '') {
+              txn.executeSql(
+                'INSERT INTO table_students (student_firstName, student_lastName, class_id, group_id) VALUES (?, ?, ?, ?)',
+                [row[firstNameIndex], row[lastNameIndex], class_id, group_id],
+                (_, res) => {
+                  console.log('Insertion successful:', res);
+                },
+              );
+            }
+          }
+        });
+      } else if (fileType === 'xlsx') {
+        // ... (similar logic for XLSX)
+      }
+    } else {
+      console.log('Document picking canceled');
+    }
+  } catch (error) {
+    console.error('File selection error:', error);
   }
-});
+};

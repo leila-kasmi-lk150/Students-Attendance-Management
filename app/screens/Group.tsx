@@ -1,18 +1,19 @@
-import { View, Text, TouchableOpacity, SafeAreaView, StyleSheet, TextInput, ScrollView, FlatList, Alert } from 'react-native'
+import { View, Text, TouchableOpacity, SafeAreaView, StyleSheet, TextInput, FlatList, Alert } from 'react-native'
 import React, { useEffect, useState } from 'react'
-import { FontAwesome, Ionicons } from '@expo/vector-icons'
-import { clas, colors } from '../component/Constant'
+import { Ionicons } from '@expo/vector-icons'
+import { colors } from '../component/Constant'
 import Icon from 'react-native-vector-icons/FontAwesome';
-import { useNavigation, useRoute } from '@react-navigation/native';
-import EditClass from './EditClass';
+import { useNavigation } from '@react-navigation/native';
 import Home from './Home';
 import Modal from 'react-native-modal';
 import * as Sqlite from 'expo-sqlite';
 import { CheckBox } from 'react-native-elements';
+import Membre from './Membre';
+import NavigateMember from './NavigateMember';
 
 
 
-const Group = ({ route }: { route: any }) => {
+const Group = ({ route, navigation }: { route: any, navigation: any }) => {
   const [isTdChecked, setTdChecked] = useState(false);
   const [isTpChecked, setTpChecked] = useState(false);
 
@@ -38,7 +39,8 @@ const Group = ({ route }: { route: any }) => {
   };
   // const for class information
   const [nameGroup, setNameGroup] = useState('');
-  const navigation = useNavigation();
+  // const navigation = useNavigation();
+
   const { class_id } = route.params;
   const { class_name } = route.params;
   const { class_speciality } = route.params;
@@ -172,7 +174,7 @@ const Group = ({ route }: { route: any }) => {
     editGroupId = item.group_id.toString();
     setEditGroupName(item.group_name);
     setEditGroupId(item.group_id);
-    if (item.group_type=='TD') {
+    if (item.group_type == 'TD') {
       setEditTdChecked(true);
       setEditTpChecked(false);
     } else {
@@ -218,6 +220,8 @@ const Group = ({ route }: { route: any }) => {
         <Ionicons name="search-outline" size={24} color="#05BFDB" />
         <TextInput style={{ paddingLeft: 8, fontSize: 16, }} placeholder='Search...'></TextInput>
       </View>
+
+      
       <View style={{ alignItems: 'center' }}>
         <TouchableOpacity style={styles.addNewClassButton} onPress={() => {
           setModalVisible(true); // Open add group modal
@@ -276,7 +280,12 @@ const Group = ({ route }: { route: any }) => {
         <View style={{ flex: 1 }}>
           <FlatList data={groupList} renderItem={({ item }) =>
             <View style={{ backgroundColor: colors.light, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 7, borderRadius: 16, marginVertical: 16, alignItems: 'center', }}>
-              <TouchableOpacity style={{ flexDirection: 'row', paddingLeft: 20, paddingRight: 20, paddingTop: 30, paddingBottom: 30 }}>
+              <TouchableOpacity
+                onPress={() => navigation.navigate('NavigateMember', 
+                { group_id: item.group_id, group_name: item.group_name,group_type: item.group_type, class_id: class_id, class_name:class_name , class_speciality:class_speciality, class_level:class_level })}
+
+                style={{ flexDirection: 'row', paddingLeft: 20, paddingRight: 20, paddingTop: 30, paddingBottom: 30 }}
+              >
                 <Text style={{ flex: 1 }}>{item.group_name} {item.group_type}</Text>
                 <Icon name="edit"
                   onPress={() => {
@@ -293,6 +302,8 @@ const Group = ({ route }: { route: any }) => {
           } />
         </View>
       </View>
+
+      
       {/* This model view for edit class,  */}
       <Modal isVisible={isModalEditVisible} onBackdropPress={() => setModalEditVisible(false)} >
         <View style={styles.modalContent}>
