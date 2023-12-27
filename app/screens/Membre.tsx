@@ -110,7 +110,12 @@ const Membre = ({ route, navigation }: { route: any, navigation: any }) => {
   // import XLSX from 'xlsx';
 
 
-  const importExcelData = async () => {
+
+  type ExcelData = {
+    [key: string]: string;
+  };
+  
+  const handleImportExcel = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
         type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -118,49 +123,84 @@ const Membre = ({ route, navigation }: { route: any, navigation: any }) => {
   
       if (!result.canceled) {
         const fileUri = result.assets[0].uri;
-        const fileContent = await FileSystem.readAsStringAsync(fileUri, {
-          encoding: FileSystem.EncodingType.UTF8,
-          type: 'BINARY' as any, // Type assertion
-        });
   
-        const workbook = XLSX.read(fileContent, { type: 'binary' });
-        const sheetName = workbook.SheetNames[0];
+        // Fetch the file content as an ArrayBuffer
+        const response = await fetch(fileUri);
+        const arrayBuffer = await response.arrayBuffer();
+        const fileContent = new Uint8Array(arrayBuffer);
+  
+        // Parse the Excel data using workbook
+        const workbook = XLSX.read(fileContent, { type: 'array' });
+  
+        const sheetName = workbook.SheetNames[0]; // Assuming data is in the first sheet
         const worksheet = workbook.Sheets[sheetName];
   
-        const expectedColumns = ['A', 'B', 'C']; // Adjust as needed
-        const actualColumns = Object.keys(worksheet);
+        // Extract data from the second and third columns dynamically
+        const data: ExcelData[] = XLSX.utils.sheet_to_json(worksheet, { header: ['Num', 'Nom', 'Prénom'] });
   
-        if (!expectedColumns.every((col, index) => actualColumns[index] === col)) {
-          console.error('Invalid file format. Please check the column order.');
+        // Validate data format
+        const validationErrors = validateDataFormat(data);
+        if (validationErrors.length) {
+          // Display validation errors to the user
+          console.error(validationErrors);
           return;
         }
   
-        const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as (string | number)[][];
-        rows.slice(1).forEach(async (row) => {
-          const [_, lastName, firstName] = row as [string, string, string]; // Assuming the order is: ID, LastName, FirstName
-          // Add more validation if needed
+        // Insert data into SQLite table
+        await insertDataIntoDatabase(data);
   
-          await db.transaction((txn) => {
-            txn.executeSql(
-              'INSERT INTO table_students (student_firstName, student_lastName, class_id, group_id) VALUES (?,?,?,?)',
-              [firstName, lastName, class_id, group_id],
-              (_, res) => {
-                console.log('Data inserted successfully.');
-              },
-              // (error) => {
-              //   console.error('Error inserting data:', error);
-              // }
-            );
-          });
-        });
+        // Log a success message
+        console.log('Data successfully imported into table_students.');
+  
+        // Provide feedback to the user about a successful import
       }
     } catch (error) {
-      console.error('Error picking document:', error);
+      console.error(error);
+      // Handle errors gracefully, e.g., display error messages to the user
     }
   };
   
+  const validateDataFormat = (data: ExcelData[]) => {
+    const errors: string[] = [];
+  
+    // Check for non-string values in Nom (Surname) and Prénom (Name)
+    data.forEach((row: ExcelData, index: number) => {
+      const nom = row['Nom'] || row['Surname'];
+      const prenom = row['Prénom'] || row['Name'];
+  
+      if (typeof nom !== 'string' || typeof prenom !== 'string') {
+        errors.push(`Invalid data at row ${index + 2}: Surname and Name must be strings`);
+      }
+    });
+  
+    // Add additional checks as needed for data format
+  
+    return errors;
+  };
+  
+  // ... (other code)
 
+const insertDataIntoDatabase = async (data: ExcelData[]) => {
+  await db.transaction((txn) => {
+    // Start from the second row to exclude the header
+    data.slice(1).forEach(async (row: ExcelData, index: number) => {
+      const nom = row['Nom'] || row['Surname'];
+      const prenom = row['Prénom'] || row['Name'];
 
+      // Additional checks on the data, you can customize this as needed
+      if (!nom || !prenom) {
+        console.error(`Invalid data at row ${index + 2}: Surname and Name are required`);
+        return;
+      }
+
+      const params = [prenom, nom, class_id, group_id];
+      await txn.executeSql(
+        'INSERT INTO table_students (student_firstName, student_lastName, class_id, group_id) VALUES (?,?,?,?)',
+        params
+      );
+    });
+  });
+};
 
 
 
@@ -215,7 +255,7 @@ const Membre = ({ route, navigation }: { route: any, navigation: any }) => {
               <View style={styles.line} />
             </View>
             <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 25 }} onPress={() => {
-              importExcelData()
+              handleImportExcel()
             }}>
               <Ionicons name="ios-folder-open-outline" size={25} color={colors.gray} style={{ marginRight: 5, top: 1, }} />
               <Text style={[{ fontSize: 15, }, { color: colors.gray }]}>Import csv file</Text>
