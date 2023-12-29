@@ -6,12 +6,9 @@ import { Ionicons } from '@expo/vector-icons';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import { colors } from '../component/Constant';
 import * as Sqlite from 'expo-sqlite';
-import Papa from 'papaparse';
 // import * as XLSX from 'xlsx';
 import * as DocumentPicker from 'expo-document-picker';
-import * as RNFS from 'react-native-fs';
 import XLSX from 'xlsx';
-import * as FileSystem from 'expo-file-system';
 
 const Membre = ({ route, navigation }: { route: any, navigation: any }) => {
   let db = Sqlite.openDatabase('Leiknach.db');
@@ -149,14 +146,13 @@ const Membre = ({ route, navigation }: { route: any, navigation: any }) => {
         // Insert data into SQLite table
         await insertDataIntoDatabase(data);
   
-        // Log a success message
+        //  success message
+        Alert.alert('List of students successfully imported')
         console.log('Data successfully imported into table_students.');
   
-        // Provide feedback to the user about a successful import
       }
     } catch (error) {
       console.error(error);
-      // Handle errors gracefully, e.g., display error messages to the user
     }
   };
   
@@ -170,15 +166,14 @@ const Membre = ({ route, navigation }: { route: any, navigation: any }) => {
   
       if (typeof nom !== 'string' || typeof prenom !== 'string') {
         errors.push(`Invalid data at row ${index + 2}: Surname and Name must be strings`);
+        Alert.alert(`Invalid data at row ${index + 2}: Surname and Name must be strings`);
       }
     });
   
-    // Add additional checks as needed for data format
   
     return errors;
   };
   
-  // ... (other code)
 
 const insertDataIntoDatabase = async (data: ExcelData[]) => {
   await db.transaction((txn) => {
