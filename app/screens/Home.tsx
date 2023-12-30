@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity, SafeAreaView, StyleSheet, TextInput, ScrollView, FlatList, Alert } from 'react-native'
+import { View, Text, TouchableOpacity, SafeAreaView, StyleSheet, TextInput, ScrollView, FlatList, Alert, Keyboard } from 'react-native'
 import React, { useEffect, useState } from 'react'
 import { Ionicons } from '@expo/vector-icons'
 import { colors } from '../component/Constant'
@@ -12,6 +12,12 @@ const Home = ({ navigation }: { navigation: any }) => {
   const [nameClass, setNameClass] = useState('');
   const [speciality, setSpeciality] = useState('');
   const [level, setLevel] = useState('');
+  // Validation state variables
+  const [nameClassError, setNameClassError] = useState('');
+  const [specialityError, setSpecialityError] = useState('');
+  const [levelError, setLevelError] = useState('');
+  const [collegeYearError, setCollegeYearError] = useState('');
+  const [addClassError, setAddClassError] = useState('');
 
   // this selectedIndex const for spesific witch college year is selected and highlighted
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -33,18 +39,28 @@ const Home = ({ navigation }: { navigation: any }) => {
   // Toggle model for add new class
   const toggleModal = () => {
     setModalVisible(!isModalVisible);
+    setNameClassError('');
+    setSpecialityError('');
+    setLevelError('');
+
+
   };
   // Toggle model for edit class
   const toggleEditModal = () => {
     setModalEditVisible(!isModalEditVisible);
   };
   // Handel const for add new class
-  const handleSave = () => {
-    addClass();
-    toggleModal();
-    setNameClass('');
-    setLevel('');
-    setSpeciality('');
+  const handleSave = async () => {
+    const isValid = await validateAddClass();
+
+  if (isValid)  {
+      addClass();
+      toggleModal();
+      setNameClass('');
+      setLevel('');
+      setSpeciality('');
+    }
+
   };
   const handleSaveEdit = () => {
     editClass();
@@ -76,7 +92,69 @@ const Home = ({ navigation }: { navigation: any }) => {
     });
   }, []);
 
+  const validateAddClass = () => {
+    setNameClassError('');
+    setSpecialityError('');
+    setLevelError('');
+    setCollegeYearError('');
+    setAddClassError('');
+    const collegeYearRegex = /^\d{4}-\d{4}$/;
+  
+    return new Promise((resolve) => {
+      let isValid = true;
+  
+      if (!nameClass.trim()) {
+        setNameClassError('Name Class is required');
+        isValid = false;
+      }
+      if (!speciality.trim()) {
+        setSpecialityError('Speciality is required');
+        isValid = false;
+      }
+      if (!level.trim()) {
+        setLevelError('Level is required');
+        isValid = false;
+      }
+      if (!collegeYearValue.trim()) {
+        setCollegeYearError('College year is required');
+        isValid = false;
+      } else if (!collegeYearRegex.test(collegeYearValue.trim())) {
+        setCollegeYearError('Invalid college year format. Use XXXX-YYYY.');
+        isValid = false;
+      } else {
+        const [startYear, endYear] = collegeYearValue.split('-').map(Number);
+        if (endYear !== startYear + 1) {
+          setCollegeYearError('The second part of the academic year must be the next year.');
+          isValid = false;
+        }
+      }
+  
+      const upperCaseNameClass = nameClass.toUpperCase();
+      const upperCaseSpeciality = speciality.toUpperCase();
+      const upperCaseLevel = level.toUpperCase();
+      const upperCaseCollegeYearValue = collegeYearValue.toUpperCase();
+  
+      db.transaction((txn) => {
+        txn.executeSql(
+          "SELECT * FROM table_class WHERE UPPER(class_name)=? AND UPPER(class_speciality)=? AND UPPER(class_level)=? AND UPPER(class_collegeYear)=?",
+          [upperCaseNameClass, upperCaseSpeciality, upperCaseLevel, upperCaseCollegeYearValue],
+          (tx, res) => {
+            if (res.rows.length > 0) {
+              setAddClassError('This class already exists.');
+              isValid = false;
+              console.log('This class already exists.');
+            }
+  
+            // Resolve the promise with the validation result
+            resolve(isValid);
+          }
+        );
+      });
+    });
+  };
+  
   // Add new class to db
+
   const addClass = () => {
     db.transaction((txn) => {
       txn.executeSql(
@@ -117,6 +195,7 @@ const Home = ({ navigation }: { navigation: any }) => {
         }
       );
     })
+
 
   }
   // Edit class to db
@@ -333,41 +412,70 @@ const Home = ({ navigation }: { navigation: any }) => {
 
       {/* Add New Class Modal */}
       <Modal isVisible={isModalVisible} onBackdropPress={() => setModalVisible(false)} >
-        <View style={styles.modalContent}>
-          <Text style={{ fontSize: 22, fontWeight: 'bold', marginBottom: 10 }}>Add New Class</Text>
-
-          <View><Text>Name Class</Text></View>
-          <TextInput style={styles.modalInput}
-            placeholder='Enter Name of Class'
-            value={nameClass}
-            onChangeText={(text) => setNameClass(text)}
-          />
-          <View><Text>Speciality</Text></View>
-          <TextInput style={styles.modalInput}
-            placeholder='Enter Speciality'
-            value={speciality}
-            onChangeText={(text) => setSpeciality(text)}
-          />
-          <View><Text>Level</Text></View>
-          <TextInput style={styles.modalInput}
-            placeholder='Enter Level'
-            value={level}
-            onChangeText={(text) => setLevel(text)}
-          />
-          <View><Text>College Year</Text></View>
-          <TextInput style={styles.modalInput}
-            placeholder='Enter College Year'
-            value={collegeYearValue}
-            onChangeText={(text) => setCollegeYearValue(text)}
-          />
-          <View style={styles.buttonEdit}>
-            <TouchableOpacity onPress={handleSave} style={styles.modalButton}>
-              <Text style={styles.buttonTexts}>Save</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={toggleModal} style={styles.modalButton}>
-              <Text style={styles.buttonTexts}>Close</Text>
-            </TouchableOpacity>
-          </View></View>
+        <ScrollView contentContainerStyle={{ paddingTop: 100 }}>
+          <View style={styles.modalContent}>
+            <Text style={{ fontSize: 22, fontWeight: 'bold', marginBottom: 10 }}>Add New Class</Text>
+            {addClassError.trim() ? (
+              <Text style={{ color: 'red' }}>{addClassError}</Text>
+            ) : null}
+            <View>
+              <Text style={{ marginTop: 5, marginBottom: 5, fontWeight: '600' }}>Name Class</Text>
+              <TextInput
+                style={styles.modalInput}
+                placeholder='Enter Name of Class'
+                value={nameClass}
+                onChangeText={(text) => setNameClass(text)}
+              />
+              {nameClassError.trim() ? (
+                <Text style={{ color: 'red' }}>{nameClassError}</Text>
+              ) : null}
+            </View>
+            <View>
+              <Text style={{ marginTop: 5, marginBottom: 5, fontWeight: '600' }}>Speciality</Text>
+              <TextInput
+                style={styles.modalInput}
+                placeholder='Enter Speciality'
+                value={speciality}
+                onChangeText={(text) => setSpeciality(text)}
+              />
+              {nameClassError.trim() ? (
+                <Text style={{ color: 'red' }}>{specialityError}</Text>
+              ) : null}
+            </View>
+            <View>
+              <Text style={{ marginTop: 5, marginBottom: 5, fontWeight: '600' }}>Level</Text>
+              <TextInput
+                style={styles.modalInput}
+                placeholder='Enter Level'
+                value={level}
+                onChangeText={(text) => setLevel(text)}
+              />
+              {nameClassError.trim() ? (
+                <Text style={{ color: 'red' }}>{levelError}</Text>
+              ) : null}
+            </View>
+            <View>
+              <Text style={{ marginTop: 5, marginBottom: 5, fontWeight: '600' }}>College Year</Text>
+              <TextInput
+                style={styles.modalInput}
+                placeholder='Enter College Year : XXXX-YYYY'
+                value={collegeYearValue}
+                onChangeText={(text) => setCollegeYearValue(text)}
+              />
+              {nameClassError.trim() ? (
+                <Text style={{ color: 'red' }}>{collegeYearError}</Text>
+              ) : null}
+            </View>
+            <View style={styles.buttonEdit}>
+              <TouchableOpacity onPress={handleSave} style={styles.modalButton}>
+                <Text style={styles.buttonTexts}>Save</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={toggleModal} style={styles.modalButton}>
+                <Text style={styles.buttonTexts}>Close</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </ScrollView>
       </Modal>
 
 
@@ -522,7 +630,7 @@ const styles = StyleSheet.create({
     borderColor: 'gray',
     backgroundColor: '#fff',
     borderWidth: 1,
-    marginBottom: 20,
+    marginBottom: 5,
     paddingHorizontal: 10,
     borderRadius: 10,
   },
