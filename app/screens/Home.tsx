@@ -42,6 +42,9 @@ const Home = ({ navigation }: { navigation: any }) => {
   const handleSave = () => {
     addClass();
     toggleModal();
+    setNameClass('');
+    setLevel('');
+    setSpeciality('');
   };
   const handleSaveEdit = () => {
     editClass();
@@ -89,9 +92,32 @@ const Home = ({ navigation }: { navigation: any }) => {
             console.log('error');
             console.log(res);
           }
+          if (SelectedCollegeYear != collegeYearValue) {
+            db.transaction((tx) => {
+              tx.executeSql(
+                'SELECT DISTINCT class_collegeYear FROM table_class ORDER BY class_collegeYear DESC',
+                [],
+                (tx, results) => {
+                  var temp = [];
+                  for (let i = 0; i < results.rows.length; ++i) {
+                    console.log(results.rows.item(i));
+                    temp.push(results.rows.item(i));
+                  }
+                  setClassList(temp);
+                }
+              );
+            });
+            fetchLastCollegeYear();
+
+          } else if (SelectedCollegeYear.length > 0) {
+            collegeYearClass(SelectedCollegeYear);
+          } else {
+            fetchLastCollegeYear();
+          }
         }
       );
     })
+
   }
   // Edit class to db
   var [editClassName, setEditClassName] = useState('');
@@ -126,6 +152,11 @@ const Home = ({ navigation }: { navigation: any }) => {
           }
         }
       );
+      if (SelectedCollegeYear.length > 0) {
+        collegeYearClass(SelectedCollegeYear);
+      } else {
+        fetchLastCollegeYear();
+      }
     });
   };
 
@@ -136,22 +167,46 @@ const Home = ({ navigation }: { navigation: any }) => {
     deleteClass();
   }
   const deleteClass = () => {
-    db.transaction((txn) => {
-      txn.executeSql(
-        'DELETE FROM table_class WHERE class_id=?',
-        [deleteClassId],
-        (tx, res) => {
-          if (res.rowsAffected === 1) {
-            Alert.alert('Class deleted successfully!');
-            console.log('Class deleted');
-          } else {
-            Alert.alert('Error deleting class');
-            console.log('Error deleting class');
-            console.log(res);
-          }
-        }
-      );
-    });
+    Alert.alert(
+      'Confirm Deletion',
+      'Do you really want to delete this class?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete',
+          onPress: async () => {
+            try {
+              await db.transaction((txn) => {
+                txn.executeSql(
+                  'DELETE FROM table_class WHERE class_id=?',
+                  [deleteClassId],
+                  (tx, res) => {
+                    if (res.rowsAffected === 1) {
+                      Alert.alert('Class deleted successfully!');
+                    } else {
+                      Alert.alert('Error deleting class');
+                    }
+                  }
+                );
+              });
+
+              if (SelectedCollegeYear.length > 0) {
+                await collegeYearClass(SelectedCollegeYear);
+              } else {
+                await fetchLastCollegeYear();
+              }
+
+            } catch (error) {
+              console.error('Error deleting class:', error);
+              Alert.alert('Error deleting class');
+            }
+          },
+        },
+      ]
+    );
   };
 
   // fetch all data class from sqlite db
@@ -171,7 +226,21 @@ const Home = ({ navigation }: { navigation: any }) => {
       );
     });
   }, []);
-
+  const fetchLastCollegeYear = () => {
+    db.transaction((tx) => {
+      tx.executeSql(
+        'SELECT DISTINCT class_collegeYear FROM table_class ORDER BY class_collegeYear DESC LIMIT 1',
+        [],
+        (tx, results) => {
+          if (results.rows.length > 0) {
+            const lastCollegeYear = results.rows.item(0).class_collegeYear;
+            setCollegeYearValue(lastCollegeYear);
+            fetchClassData(lastCollegeYear);
+          }
+        }
+      );
+    });
+  }
   // Fetch the last collegeYear from the table
   useEffect(() => {
     db.transaction((tx) => {
@@ -207,7 +276,9 @@ const Home = ({ navigation }: { navigation: any }) => {
     });
   };
   // fetch class of college year XXXX-YYYY
+  const [SelectedCollegeYear, setSelectedCollegeYear] = useState('');
   const collegeYearClass = (collegeYear: string) => {
+    setSelectedCollegeYear(collegeYear);
     db.transaction((tx) => {
       tx.executeSql(
         'SELECT * FROM table_class WHERE class_collegeYear= ?',
@@ -336,7 +407,7 @@ const Home = ({ navigation }: { navigation: any }) => {
                 {/* When cilck in this view, It will be navigate to goups of this class */}
                 <TouchableOpacity
                   onPress={() => navigation.navigate('Group',
-                   { class_id: item.class_id.toString(), class_name:item.class_name , class_speciality:item.class_speciality, class_level:item.class_level })}
+                    { class_id: item.class_id.toString(), class_name: item.class_name, class_speciality: item.class_speciality, class_level: item.class_level })}
                   style={{ flexDirection: 'row', paddingLeft: 20, paddingRight: 20, paddingTop: 30, paddingBottom: 30 }}
                 >
                   <Text style={{ flex: 1 }}>{item.class_name} {item.class_speciality} {item.class_level}</Text>
