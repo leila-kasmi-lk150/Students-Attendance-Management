@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react'
 import { Ionicons } from '@expo/vector-icons'
 import { colors } from '../component/Constant'
 import Icon from 'react-native-vector-icons/FontAwesome';
-import { useNavigation } from '@react-navigation/native';
+// import { useNavigation } from '@react-navigation/native';
 import Home from './Home';
 import Modal from 'react-native-modal';
 import * as Sqlite from 'expo-sqlite';
