@@ -17,17 +17,17 @@ const MemberScreens = ({ route }: { route: any }) => (
 
 // This stack for all screens of Presence
 const PresenceStack = createNativeStackNavigator();
-const PresenceScreens = () => (
+const PresenceScreens = ({ route }: { route: any }) => (
   <PresenceStack.Navigator>
-    <PresenceStack.Screen name='PresenceScreens' component={Presence} options={{ headerShown: false }} />
+    <PresenceStack.Screen name='PresenceScreens' component={Presence} initialParams={route.params}  options={{ headerShown: false }} />
   </PresenceStack.Navigator>
 );
 
 // This stack for all screens of Statistics
 const StatisticsStack = createNativeStackNavigator();
-const StatisticsScreens = () => (
+const StatisticsScreens = ({ route }: { route: any }) => (
   <StatisticsStack.Navigator>
-    <StatisticsStack.Screen name='StatisticsScreens' component={Statistics} options={{ headerShown: false }} />
+    <StatisticsStack.Screen name='StatisticsScreens' component={Statistics} initialParams={route.params} options={{ headerShown: false }} />
   </StatisticsStack.Navigator>
 );
 type TabIconName = 'ios-people' | 'ios-people-outline' | 'ios-checkmark-circle' | 'ios-checkmark-circle-outline' | 'ios-stats-chart' | 'ios-stats-chart-outline';
@@ -36,8 +36,8 @@ const Tab = createBottomTabNavigator();
 const NavigateMember = ({ route }: { route: any }) => {
   return (
     <Tab.Navigator
-      screenOptions={({ route }) => ({
-        tabBarIcon: ({ focused, color, size }) => {
+      screenOptions={({ route }: { route : any }) => ({
+        tabBarIcon: ({ focused , color, size }: { focused: boolean, color: string, size: number }) => {
           let iconName: TabIconName | undefined;
 
           if (route.name === 'Students') {
@@ -56,8 +56,8 @@ const NavigateMember = ({ route }: { route: any }) => {
       })}
     >
     <Tab.Screen name="Students" component={MemberScreens} initialParams={route.params} options={{ headerShown: false }} />
-    <Tab.Screen name="Presence" component={PresenceScreens} options={{ headerShown: false }}/>
-    <Tab.Screen name="Statistics" component={StatisticsScreens} options={{ headerShown: false }}/>
+    <Tab.Screen name="Presence" component={PresenceScreens} initialParams={route.params} options={{ headerShown: false }}/>
+    <Tab.Screen name="Statistics" component={StatisticsScreens} initialParams={route.params}  options={{ headerShown: false }}/>
   </Tab.Navigator>
   )
 }
