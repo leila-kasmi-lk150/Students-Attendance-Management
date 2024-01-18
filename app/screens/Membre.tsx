@@ -1,4 +1,4 @@
-import { Alert, StyleSheet, Text, TouchableOpacity, Dimensions, ScrollView, View, TextInput, FlatList } from 'react-native';
+import { Alert, StyleSheet, Text, TouchableOpacity, View, TextInput, FlatList } from 'react-native';
 import React, { useEffect, useState } from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import Modal from 'react-native-modal';
@@ -36,20 +36,39 @@ const Membre = ({ route, navigation }: { route: any, navigation: any }) => {
   // Toggle model for add new student
   const toggleModal = () => {
     setModalVisible(!isModalVisible);
+    setStudentLastName('');
+    setStudentLastName('');
+    setStudentLastNameError('');
+    setstudentFirstNameError('');
+    setAddStudentError('');
   };
   // Handel const for add new student
-  const handleSave = () => {
-    addStudent();
-    toggleModal();
+  const handleSave = async () => {
+    const isValid = await validateAddStudent();
+
+    if (isValid) {
+      addStudent();
+      toggleModal();
+      setStudentFirstName('');
+      setStudentLastName('');
+    }
+
   };
   // Handel const for edit student information
-  const handleSaveEdit = () => {
-    editStudent();
+  const handleSaveEdit = async () => {
+    const isValid = await validateEditStudent();
+    if (isValid) {
+      editStudent();
     toggleEditModal();
+    }
+    
   };
   // Toggle model for edit student
   const toggleEditModal = () => {
     setModalEditVisible(!isModalEditVisible);
+    setEditStudentError('');
+    setStudentLastNameErrorEdit('');
+    setstudentFirstNameErrorEdit('');
   };
   // Database functions
   useEffect(() => {
@@ -76,6 +95,47 @@ const Membre = ({ route, navigation }: { route: any, navigation: any }) => {
   }, []);
 
   // Add new student one by one
+
+  // Validation state variables --> add student
+  const [studentFirstNameError, setstudentFirstNameError] = useState('');
+  const [studentLastNameError, setStudentLastNameError] = useState('');
+  const [addStudentError, setAddStudentError] = useState('');
+
+  const validateAddStudent = () => {
+    setstudentFirstNameError('');
+    setStudentLastNameError('');
+    setAddStudentError('');
+
+    return new Promise((resolve) => {
+      let isValid = true;
+
+      if (!studentLastName.trim()) {
+        setStudentLastNameError('Surname is required');
+        isValid = false;
+      }
+      if (!studentFirstName.trim()) {
+        setstudentFirstNameError('First name is required');
+        isValid = false;
+      }
+      const upperCaseFirstName = studentFirstName.toUpperCase();
+      const upperCaseLastName = studentLastName.toUpperCase();
+
+      db.transaction((txn) => {
+        txn.executeSql(
+          "SELECT * FROM table_students WHERE UPPER(student_firstName)=? AND UPPER(student_lastName)=? AND group_id=?",
+          [upperCaseFirstName, upperCaseLastName, group_id],
+          (tx, res) => {
+            if (res.rows.length > 0) {
+              setAddStudentError('This student already exists.');
+              isValid = false;
+              console.log('This student already exists.');
+            }
+            resolve(isValid);
+          }
+        );
+      });
+    });
+  };
   const addStudent = () => {
     db.transaction((txn) => {
       txn.executeSql(
@@ -93,11 +153,12 @@ const Membre = ({ route, navigation }: { route: any, navigation: any }) => {
           }
         }
       );
+      fetchStusent();
     })
   }
 
   // fetch all data student from sqlite db
-  useEffect(() => {
+  const fetchStusent = () => {
     db.transaction((tx) => {
       tx.executeSql(
         'SELECT * FROM table_students WHERE group_id=?',
@@ -112,6 +173,9 @@ const Membre = ({ route, navigation }: { route: any, navigation: any }) => {
         }
       );
     });
+  }
+  useEffect(() => {
+    fetchStusent();
   }, []);
 
   // import XLSX from 'xlsx';
@@ -169,10 +233,10 @@ const Membre = ({ route, navigation }: { route: any, navigation: any }) => {
     // Check for non-string values in Nom (Surname) and Prénom (Name)
     data.forEach((row: ExcelData, index: number) => {
       const nom = row['Nom'] || row['Surname'];
-      const prenom = row['Prénom'] || row['Name'];
+      const prenom = row['Prénom'] || row['First Name'];
 
       if (typeof nom !== 'string' || typeof prenom !== 'string') {
-        errors.push(`Invalid data at row ${index + 2}: Surname and Name must be strings`);
+        errors.push(`Invalid data at row ${index + 2}: ${nom} ${prenom} Surname and Name must be strings`);
         Alert.alert(`Invalid data at row ${index + 2}: Surname and Name must be strings`);
       }
     });
@@ -200,12 +264,15 @@ const Membre = ({ route, navigation }: { route: any, navigation: any }) => {
           'INSERT INTO table_students (student_firstName, student_lastName, class_id, group_id) VALUES (?,?,?,?)',
           params
         );
+        fetchStusent();
+        toggleModal();
       });
     });
   };
+
   //end  import XLSX from 'xlsx';
 
-  // Delet student
+  /* ========= Delet student =======*/
   var [deleteStudentId, setDeleteStudentId] = useState('');
   const getDataDeleteStudent = (item: any) => {
     deleteStudentId = item.student_id.toString();
@@ -237,20 +304,7 @@ const Membre = ({ route, navigation }: { route: any, navigation: any }) => {
                   }
                 );
               });
-              db.transaction((tx) => {
-                tx.executeSql(
-                  'SELECT * FROM table_students WHERE group_id=?',
-                  [group_id],
-                  (tx, results) => {
-                    var temp = [];
-                    for (let i = 0; i < results.rows.length; ++i) {
-                      console.log(results.rows.item(i));
-                      temp.push(results.rows.item(i));
-                    }
-                    setStudentList(temp);
-                  }
-                );
-              });
+              fetchStusent();
             } catch (error) {
               console.error('Error deleting student:', error);
               Alert.alert('Error deleting student');
@@ -264,6 +318,65 @@ const Membre = ({ route, navigation }: { route: any, navigation: any }) => {
   var [editStudentFirstName, setEditStudentFirstName] = useState('');
   var [editStudentLastName, setEditStudentLastName] = useState('');
   var [editStudentId, setEditStudentId] = useState('');
+
+   // Validation state variables --> edit student
+   const [studentFirstNameErrorEdit, setstudentFirstNameErrorEdit] = useState('');
+   const [studentLastNameErrorEdit, setStudentLastNameErrorEdit] = useState('');
+   const [editStudentError, setEditStudentError] = useState('');
+
+   const validateEditStudent = () => {
+    setstudentFirstNameErrorEdit('');
+    setStudentLastNameErrorEdit('');
+    setEditStudentError('');
+
+    return new Promise((resolve) => {
+      let isValid = true;
+
+      if (!editStudentLastName.trim()) {
+        setStudentLastNameErrorEdit('Surname is required');
+        isValid = false;
+      }
+      if (!editStudentFirstName.trim()) {
+        setstudentFirstNameErrorEdit('First name is required');
+        isValid = false;
+      }
+      const upperCaseFirstName = editStudentFirstName.toUpperCase();
+      const upperCaseLastName = editStudentLastName.toUpperCase();
+
+      db.transaction((txn) => {
+        txn.executeSql(
+          "SELECT * FROM table_students WHERE student_id=? ",
+          [editStudentId],
+          (tx, res) => {
+            const studenExist = res.rows.item(0);
+            if (
+              upperCaseFirstName !== studenExist.student_firstName.toUpperCase() ||
+              upperCaseLastName !== studenExist.student_lastName.toUpperCase()  ||
+              editStudentGroup !== group_id ||
+              editStudentGroup === group_id 
+            ) {
+              console.log('defrent information');
+              txn.executeSql(
+                "SELECT * FROM table_students WHERE UPPER(student_firstName)=? AND UPPER(student_lastName)=? AND group_id=?",
+                [upperCaseFirstName, upperCaseLastName, editStudentGroup],
+                (tx, res) => {
+                  if (res.rows.length > 0) {
+                    setEditStudentError('This student already exists in this group');
+                    isValid = false;
+                    console.log('This student already exists in this group');
+                  }
+                  resolve(isValid);
+                }
+              );
+            } else {
+
+              resolve(isValid);
+            }
+          }
+        );
+      });
+    });
+  };
 
   const getDataEditingStudent = (item: any) => {
     editStudentId = item.student_id.toString();
@@ -379,18 +492,27 @@ const Membre = ({ route, navigation }: { route: any, navigation: any }) => {
       <Modal isVisible={isModalVisible} onBackdropPress={() => setModalVisible(false)} >
         <View style={[styles.modalContent]}>
           <Text style={{ fontSize: 22, fontWeight: 'bold', marginBottom: 10 }}>Add New Student</Text>
-          <View><Text>Surname:</Text></View>
+          {addStudentError.trim() ? (
+            <Text style={{ color: 'red' }}>{addStudentError}</Text>
+          ) : null}
+          <View><Text style={{ marginTop: 5, marginBottom: 5, fontWeight: '600' }}>Surname:</Text></View>
           <TextInput style={[styles.modalInput, { width: '100%' }]}
             placeholder='Enter Surname of Student'
             value={studentLastName}
             onChangeText={(text) => setStudentLastName(text)}
           />
-          <View><Text>First Name:</Text></View>
+          {studentLastNameError.trim() ? (
+            <Text style={{ color: 'red' }}>{studentLastNameError}</Text>
+          ) : null}
+          <View><Text style={{ marginTop: 5, marginBottom: 5, fontWeight: '600' }}>First Name:</Text></View>
           <TextInput style={[styles.modalInput, { width: '100%' }]}
             placeholder='Enter First Name of Student'
             value={studentFirstName}
             onChangeText={(text) => setStudentFirstName(text)}
           />
+          {studentFirstNameError.trim() ? (
+            <Text style={{ color: 'red' }}>{studentFirstNameError}</Text>
+          ) : null}
           <View style={{ alignItems: 'center' }}>
             <View style={styles.ORcontainer}>
               <View style={styles.line} />
@@ -448,19 +570,27 @@ const Membre = ({ route, navigation }: { route: any, navigation: any }) => {
       <Modal isVisible={isModalEditVisible} onBackdropPress={() => setModalEditVisible(false)} >
         <View style={styles.modalContent}>
           <Text style={{ fontSize: 22, fontWeight: 'bold', marginBottom: 10 }}>Edit Class Class</Text>
-
+          {editStudentError.trim() ? (
+            <Text style={{ color: 'red' }}>{editStudentError}</Text>
+          ) : null}
           <View><Text>Surname:</Text></View>
           <TextInput style={[styles.modalInput, { width: '100%' }]}
             placeholder='Enter Surname of Student'
             value={editStudentLastName}
             onChangeText={(text) => setEditStudentLastName(text)}
           />
+          {studentLastNameErrorEdit.trim() ? (
+            <Text style={{ color: 'red' }}>{studentLastNameErrorEdit}</Text>
+          ) : null}
           <View><Text>First Name:</Text></View>
           <TextInput style={[styles.modalInput, { width: '100%' }]}
             placeholder='Enter First Name of Student'
             value={editStudentFirstName}
             onChangeText={(text) => setEditStudentFirstName(text)}
           />
+          {studentFirstNameErrorEdit.trim() ? (
+            <Text style={{ color: 'red' }}>{studentFirstNameErrorEdit}</Text>
+          ) : null}
           <View><Text>Group : </Text></View>
           <Dropdown
             style={[styles.dropdown, isFocus && { borderColor: 'blue' }]}
@@ -489,9 +619,6 @@ const Membre = ({ route, navigation }: { route: any, navigation: any }) => {
               setIsFocus(false);
             }}
           />
-
-
-
           <View style={[styles.buttonEdit, { width: 100, }]}>
             <TouchableOpacity onPress={handleSaveEdit} style={styles.modalButton}>
               <Text style={styles.buttonTexts}>Save</Text>
