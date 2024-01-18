@@ -100,7 +100,7 @@ const Home = ({ navigation }: { navigation: any }) => {
           if (res.rows.length == 0) {
             txn.executeSql('DROP TABLE IF EXISTS table_class', []);
             txn.executeSql(
-              'CREATE TABLE IF NOT EXISTS table_class(class_id INTEGER PRIMARY KEY AUTOINCREMENT, class_name VARCHAR(20), class_speciality VARCHAR(20), class_level VARCHAR(20), class_collegeYear VARCHAR(20))',
+              'CREATE TABLE IF NOT EXISTS table_class(class_id INTEGER PRIMARY KEY AUTOINCREMENT, class_name TEXT, class_speciality TEXT, class_level TEXT, class_collegeYear VARCHAR(20))',
               []
             );
             console.log("create table");

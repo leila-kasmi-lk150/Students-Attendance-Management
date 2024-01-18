@@ -107,7 +107,7 @@ const Session = ({ route, navigation }: { route: any, navigation: any }) => {
                 <Text> From </Text>
               </Text>
             </View>
-            <Text style={{ color: colors.gray, fontSize: 10 }}> __/__/____</Text>
+            <Text style={{ color: colors.gray, fontSize: 10 }}> 01/01/2024</Text>
           </View>
         </View>
         <View style={{
@@ -121,7 +121,7 @@ const Session = ({ route, navigation }: { route: any, navigation: any }) => {
                 <Text> To </Text>
               </Text>
             </View>
-            <Text style={{ color: colors.gray, fontSize: 10 }}> __/__/____</Text>
+            <Text style={{ color: colors.gray, fontSize: 10 }}> 06/09/2024</Text>
           </View>
         </View>
         <View style={{
