@@ -1,50 +1,84 @@
-import { useEffect, useState } from "react";
+import React, { useState, useMemo } from 'react';
+import { View, Text, FlatList, TouchableOpacity } from 'react-native';
+import RadioGroup, { RadioButton } from 'react-native-radio-buttons-group';
 
-interface StudentItem {
-    student_id: string;
-    student_firstName: string;
-    student_lastName: string;
-    class_id: number;
-    group_id: number;
-  }
+const AttendanceComponent = () => {
   const [studentList, setStudentList] = useState<StudentItem[]>([]);
+  const radioButtons: RadioButtonProps[] = useMemo(
+    () => [
+      {
+        id: '1',
+        label: 'Option 1',
+        value: 'option1',
+      },
+      {
+        id: '2',
+        label: 'Option 2',
+        value: 'option2',
+      },
+    ],
+    []
+  );
 
-  // later, delete this code (useEffect) when you work on database
-  // when you fill studentList from there
-  // delete just useEffect, because you need studentList and setStudentList variables ⚠
-  useEffect(() => {
-    const initialStudentList: StudentItem[] = [
-      {
-        student_id: '1',
-        student_firstName: 'Leila',
-        student_lastName: 'Kasmi',
-        class_id: 6,
-        group_id: 9,
-      },
-      {
-        student_id: '2',
-        student_firstName: 'Chourrouk',
-        student_lastName: 'Saadi',
-        class_id: 6,
-        group_id: 9,
-      },
-      {
-        student_id: '3',
-        student_firstName: 'Ikram',
-        student_lastName: 'Batouche',
-        class_id: 6,
-        group_id: 9,
-      },
-      {
-        student_id: '4',
-        student_firstName: 'Nafissa',
-        student_lastName: 'Belaroug',
-        class_id: 6,
-        group_id: 9,
-      },
-    ];
-    setStudentList(initialStudentList);
-  }, []);
+  const [selectedIds, setSelectedIds] = useState<{ [key: string]: string | undefined }>({});
 
-  const checkAttendance= false;
-  // this variable checkAttendance for achieve if prof check Attendance or no 
+  return (
+    <View style={{ marginTop: 22, flex: 1 }}>
+      <Text style={{ fontSize: 22, fontWeight: 'bold' }}>Check Attendance</Text>
+      <View style={{ flex: 1 }}>
+        <FlatList
+          data={studentList}
+          renderItem={({ item }) => (
+            <View
+              style={{
+                backgroundColor: 'lightgray',
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.1,
+                shadowRadius: 7,
+                borderRadius: 16,
+                marginVertical: 16,
+                alignItems: 'center',
+              }}
+            >
+              <TouchableOpacity
+                style={{
+                  flexDirection: 'row',
+                  paddingLeft: 20,
+                  paddingRight: 20,
+                  paddingTop: 30,
+                  paddingBottom: 30,
+                }}
+              >
+                <Text style={{ flex: 1 }}>{item.student_lastName} {item.student_firstName}</Text>
+
+                <RadioGroup
+                  radioButtons={radioButtons}
+                  onPress={(data) => {
+    console.log('Data:', data);
+
+    if (Array.isArray(data)) {
+      const selectedRadioButton = data.find((button) => button.selected);
+      console.log('Selected RadioButton:', selectedRadioButton);
+
+      setSelectedIds((prevIds) => ({
+        ...prevIds,
+        [item.student_id]: selectedRadioButton ? selectedRadioButton.value : undefined,
+      }));
+    } else {
+      console.error('Invalid data format:', data);
+    }
+  }}
+                  selectedId={selectedIds[item.student_id]}
+                />
+              </TouchableOpacity>
+            </View>
+          )}
+          keyExtractor={(item) => item.student_id.toString()}
+        />
+      </View>
+    </View>
+  );
+};
+
+export default AttendanceComponent;
