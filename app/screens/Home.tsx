@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity, SafeAreaView, StyleSheet, TextInput, ScrollView, FlatList, Alert, Keyboard } from 'react-native'
+import { View, Text, TouchableOpacity, SafeAreaView, StyleSheet, TextInput, ScrollView, FlatList, Alert } from 'react-native'
 import React, { useEffect, useState } from 'react'
 import { Ionicons } from '@expo/vector-icons'
 import { colors } from '../component/Constant'
@@ -12,12 +12,20 @@ const Home = ({ navigation }: { navigation: any }) => {
   const [nameClass, setNameClass] = useState('');
   const [speciality, setSpeciality] = useState('');
   const [level, setLevel] = useState('');
-  // Validation state variables
+  // Validation state variables --> add class
   const [nameClassError, setNameClassError] = useState('');
   const [specialityError, setSpecialityError] = useState('');
   const [levelError, setLevelError] = useState('');
   const [collegeYearError, setCollegeYearError] = useState('');
   const [addClassError, setAddClassError] = useState('');
+
+  // Validation state variables --> edit class
+  const [nameClassErrorEdit, setNameClassErrorEdit] = useState('');
+  const [specialityErrorEdit, setSpecialityErrorEdit] = useState('');
+  const [levelErrorEdit, setLevelErrorEdit] = useState('');
+  const [collegeYearErrorEdit, setCollegeYearErrorEdit] = useState('');
+  const [editClassError, setEditClassError] = useState('');
+
 
   // this selectedIndex const for spesific witch college year is selected and highlighted
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -42,18 +50,26 @@ const Home = ({ navigation }: { navigation: any }) => {
     setNameClassError('');
     setSpecialityError('');
     setLevelError('');
-
-
+    setAddClassError('');
+    setCollegeYearError('');
+    setNameClass('');
+    setLevel('');
+    setSpeciality('');
   };
   // Toggle model for edit class
   const toggleEditModal = () => {
     setModalEditVisible(!isModalEditVisible);
+    setNameClassErrorEdit('');
+    setSpecialityErrorEdit('');
+    setLevelErrorEdit('');
+    setEditClassError('');
+    setCollegeYearErrorEdit('');
   };
   // Handel const for add new class
   const handleSave = async () => {
     const isValid = await validateAddClass();
 
-  if (isValid)  {
+    if (isValid) {
       addClass();
       toggleModal();
       setNameClass('');
@@ -61,10 +77,15 @@ const Home = ({ navigation }: { navigation: any }) => {
       setSpeciality('');
     }
 
+
   };
-  const handleSaveEdit = () => {
-    editClass();
-    toggleEditModal();
+  const handleSaveEdit = async () => {
+    const isValid = await validateEditClass();
+    if (isValid) {
+      editClass();
+      toggleEditModal();
+    }
+
   };
 
   // data base functions
@@ -99,10 +120,10 @@ const Home = ({ navigation }: { navigation: any }) => {
     setCollegeYearError('');
     setAddClassError('');
     const collegeYearRegex = /^\d{4}-\d{4}$/;
-  
+
     return new Promise((resolve) => {
       let isValid = true;
-  
+
       if (!nameClass.trim()) {
         setNameClassError('Name Class is required');
         isValid = false;
@@ -128,12 +149,12 @@ const Home = ({ navigation }: { navigation: any }) => {
           isValid = false;
         }
       }
-  
+
       const upperCaseNameClass = nameClass.toUpperCase();
       const upperCaseSpeciality = speciality.toUpperCase();
       const upperCaseLevel = level.toUpperCase();
       const upperCaseCollegeYearValue = collegeYearValue.toUpperCase();
-  
+
       db.transaction((txn) => {
         txn.executeSql(
           "SELECT * FROM table_class WHERE UPPER(class_name)=? AND UPPER(class_speciality)=? AND UPPER(class_level)=? AND UPPER(class_collegeYear)=?",
@@ -144,7 +165,6 @@ const Home = ({ navigation }: { navigation: any }) => {
               isValid = false;
               console.log('This class already exists.');
             }
-  
             // Resolve the promise with the validation result
             resolve(isValid);
           }
@@ -152,7 +172,7 @@ const Home = ({ navigation }: { navigation: any }) => {
       });
     });
   };
-  
+
   // Add new class to db
 
   const addClass = () => {
@@ -198,6 +218,85 @@ const Home = ({ navigation }: { navigation: any }) => {
 
 
   }
+  // Validate input of edit class form
+
+  const validateEditClass = () => {
+    setNameClassErrorEdit('');
+    setSpecialityErrorEdit('');
+    setLevelErrorEdit('');
+    setCollegeYearErrorEdit('');
+    setEditClassError('');
+    const collegeYearRegex = /^\d{4}-\d{4}$/;
+
+    return new Promise((resolve) => {
+      let isValid = true;
+
+      if (!editClassName.trim()) {
+        setNameClassErrorEdit('Name Class is required');
+        isValid = false;
+      }
+      if (!editClassSpeciality.trim()) {
+        setSpecialityErrorEdit('Speciality is required');
+        isValid = false;
+      }
+      if (!editClasslevel.trim()) {
+        setLevelErrorEdit('Level is required');
+        isValid = false;
+      }
+      if (!editClassCollegeYear.trim()) {
+        setCollegeYearErrorEdit('College year is required');
+        isValid = false;
+      } else if (!collegeYearRegex.test(editClassCollegeYear.trim())) {
+        setCollegeYearErrorEdit('Invalid college year format. Use XXXX-YYYY.');
+        isValid = false;
+      } else {
+        const [startYear, endYear] = editClassCollegeYear.split('-').map(Number);
+        if (endYear !== startYear + 1) {
+          setCollegeYearErrorEdit('The second part of the academic year must be the next year.');
+          isValid = false;
+        }
+      }
+
+      const upperCaseNameClass = editClassName.toUpperCase();
+      const upperCaseSpeciality = editClassSpeciality.toUpperCase();
+      const upperCaseLevel = editClasslevel.toUpperCase();
+      const upperCaseCollegeYearValue = editClassCollegeYear.toUpperCase();
+
+      db.transaction((txn) => {
+        txn.executeSql(
+          "SELECT * FROM table_class WHERE class_id = ?",
+          [editClassId],
+          (tx, res) => {
+            const originalClass = res.rows.item(0);
+            if (
+              upperCaseNameClass !== originalClass.class_name.toUpperCase() ||
+              upperCaseSpeciality !== originalClass.class_speciality.toUpperCase() ||
+              upperCaseLevel !== originalClass.class_level.toUpperCase() ||
+              upperCaseCollegeYearValue !== originalClass.class_collegeYear.toUpperCase()
+            ) {
+              txn.executeSql(
+                "SELECT * FROM table_class WHERE UPPER(class_name)=? AND UPPER(class_speciality)=? AND UPPER(class_level)=? AND UPPER(class_collegeYear)=?",
+                [upperCaseNameClass, upperCaseSpeciality, upperCaseLevel, upperCaseCollegeYearValue],
+                (tx, res) => {
+                  if (res.rows.length > 0) {
+                    setEditClassError('This class already exists.');
+                    isValid = false;
+                    console.log('This class already exists.');
+                  }
+                  resolve(isValid);
+                }
+              );
+            } else {
+
+              resolve(isValid);
+            }
+          }
+        );
+      });
+
+
+    });
+  };
   // Edit class to db
   var [editClassName, setEditClassName] = useState('');
   var [editClassSpeciality, setEditClassSpeciality] = useState('');
@@ -438,7 +537,7 @@ const Home = ({ navigation }: { navigation: any }) => {
                 value={speciality}
                 onChangeText={(text) => setSpeciality(text)}
               />
-              {nameClassError.trim() ? (
+              {specialityError.trim() ? (
                 <Text style={{ color: 'red' }}>{specialityError}</Text>
               ) : null}
             </View>
@@ -450,7 +549,7 @@ const Home = ({ navigation }: { navigation: any }) => {
                 value={level}
                 onChangeText={(text) => setLevel(text)}
               />
-              {nameClassError.trim() ? (
+              {levelError.trim() ? (
                 <Text style={{ color: 'red' }}>{levelError}</Text>
               ) : null}
             </View>
@@ -462,7 +561,7 @@ const Home = ({ navigation }: { navigation: any }) => {
                 value={collegeYearValue}
                 onChangeText={(text) => setCollegeYearValue(text)}
               />
-              {nameClassError.trim() ? (
+              {collegeYearError.trim() ? (
                 <Text style={{ color: 'red' }}>{collegeYearError}</Text>
               ) : null}
             </View>
@@ -540,23 +639,38 @@ const Home = ({ navigation }: { navigation: any }) => {
       <Modal isVisible={isModalEditVisible} onBackdropPress={() => setModalEditVisible(false)} >
         <View style={styles.modalContent}>
           <Text style={{ fontSize: 22, fontWeight: 'bold', marginBottom: 10 }}>Edit Class Class</Text>
-          <View><Text>Name Class</Text></View>
+          {editClassError.trim() ? (
+            <Text style={{ color: 'red' }}>{editClassError}</Text>
+          ) : null}
+          <View><Text style={{ marginTop: 5, marginBottom: 5, fontWeight: '600' }}>Name Class</Text></View>
           <TextInput style={styles.modalInput}
             value={editClassName}
             onChangeText={(text) => setEditClassName(text)}
           />
-          <View><Text>Speciality</Text></View>
+          {nameClassErrorEdit.trim() ? (
+            <Text style={{ color: 'red' }}>{nameClassErrorEdit}</Text>
+          ) : null}
+          <View><Text style={{ marginTop: 5, marginBottom: 5, fontWeight: '600' }}>Speciality</Text></View>
           <TextInput style={styles.modalInput}
             value={editClassSpeciality}
             onChangeText={(text) => setEditClassSpeciality(text)} />
-          <View><Text>Level</Text></View>
+          {specialityErrorEdit.trim() ? (
+            <Text style={{ color: 'red' }}>{specialityErrorEdit}</Text>
+          ) : null}
+          <View><Text style={{ marginTop: 5, marginBottom: 5, fontWeight: '600' }}>Level</Text></View>
           <TextInput style={styles.modalInput}
             value={editClasslevel}
             onChangeText={(text) => setEditClasslevel(text)} />
-          <View><Text>College Year</Text></View>
+          {levelErrorEdit.trim() ? (
+            <Text style={{ color: 'red' }}>{levelErrorEdit}</Text>
+          ) : null}
+          <View><Text style={{ marginTop: 5, marginBottom: 5, fontWeight: '600' }}>College Year</Text></View>
           <TextInput style={styles.modalInput}
             value={editClassCollegeYear}
             onChangeText={(text) => setEditClassCollegeYear(text)} />
+          {collegeYearErrorEdit.trim() ? (
+            <Text style={{ color: 'red' }}>{collegeYearErrorEdit}</Text>
+          ) : null}
           <View style={styles.buttonEdit}>
             <TouchableOpacity onPress={handleSaveEdit} style={styles.modalButton}>
               <Text style={styles.buttonTexts}>Save</Text>

@@ -4,8 +4,8 @@ import Home from './app/screens/Home';
 import Group from './app/screens/Group';
 import Welcome from './app/Welcome';
 import Membre from './app/screens/Membre';
-import Presence from './app/screens/Presence';
-import Statistics from './app/screens/Statistics';
+import Presence from './app/screens/Session';
+import Statistics from './app/screens/Presence';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import NavigateMember from './app/screens/NavigateMember';
 

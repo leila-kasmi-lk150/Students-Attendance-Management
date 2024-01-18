@@ -1,34 +1,50 @@
-import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
-import React from 'react'
-import { SafeAreaView } from 'react-native-safe-area-context'
-import { Ionicons } from '@expo/vector-icons';
+import { useEffect, useState } from "react";
 
-
-const Presence = ({ route, navigation }: { route: any, navigation: any }) => {
-  const { class_id } = route.params;
-  const { class_name } = route.params;
-  const { class_speciality } = route.params;
-  const { class_level } = route.params;
-  const { group_id } = route.params;
-  const { group_name } = route.params;
-  const { group_type } = route.params;
-  function example() {
-    Alert.alert(group_name)
+interface StudentItem {
+    student_id: string;
+    student_firstName: string;
+    student_lastName: string;
+    class_id: number;
+    group_id: number;
   }
-  return (
-    <SafeAreaView style={{ flex: 1, marginHorizontal: 16, marginTop: 20 }}>
-      {/* header  */}
-      <View style={{ flexDirection: 'row' }}>
-        <Ionicons name="ios-arrow-back" size={25} color="#05BFDB" style={{ top: 10, marginRight: 15 }}
-          onPress={() => navigation.navigate('Group',
-            { class_id: class_id, class_name: class_name, class_speciality: class_speciality, class_level: class_level })}
-        />
-        <Text style={{ flex: 1, fontSize: 25, fontWeight: '700' }}>{class_name} {group_name} {group_type}</Text>
-      </View>
-    </SafeAreaView>
-  )
-}
+  const [studentList, setStudentList] = useState<StudentItem[]>([]);
 
-export default Presence
+  // later, delete this code (useEffect) when you work on database
+  // when you fill studentList from there
+  // delete just useEffect, because you need studentList and setStudentList variables ⚠
+  useEffect(() => {
+    const initialStudentList: StudentItem[] = [
+      {
+        student_id: '1',
+        student_firstName: 'Leila',
+        student_lastName: 'Kasmi',
+        class_id: 6,
+        group_id: 9,
+      },
+      {
+        student_id: '2',
+        student_firstName: 'Chourrouk',
+        student_lastName: 'Saadi',
+        class_id: 6,
+        group_id: 9,
+      },
+      {
+        student_id: '3',
+        student_firstName: 'Ikram',
+        student_lastName: 'Batouche',
+        class_id: 6,
+        group_id: 9,
+      },
+      {
+        student_id: '4',
+        student_firstName: 'Nafissa',
+        student_lastName: 'Belaroug',
+        class_id: 6,
+        group_id: 9,
+      },
+    ];
+    setStudentList(initialStudentList);
+  }, []);
 
-const styles = StyleSheet.create({})
+  const checkAttendance= false;
+  // this variable checkAttendance for achieve if prof check Attendance or no 

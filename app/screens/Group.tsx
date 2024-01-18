@@ -3,13 +3,10 @@ import React, { useEffect, useState } from 'react'
 import { Ionicons } from '@expo/vector-icons'
 import { colors } from '../component/Constant'
 import Icon from 'react-native-vector-icons/FontAwesome';
-// import { useNavigation } from '@react-navigation/native';
 import Home from './Home';
 import Modal from 'react-native-modal';
 import * as Sqlite from 'expo-sqlite';
 import { CheckBox } from 'react-native-elements';
-import Membre from './Membre';
-import NavigateMember from './NavigateMember';
 
 
 
@@ -37,9 +34,9 @@ const Group = ({ route, navigation }: { route: any, navigation: any }) => {
     setEditTpChecked(!isEditTpChecked);
     setEditTdChecked(false); // Uncheck TD
   };
-  // const for class information
+
   const [nameGroup, setNameGroup] = useState('');
-  // const navigation = useNavigation();
+
 
   const { class_id } = route.params;
   const { class_name } = route.params;
@@ -60,19 +57,40 @@ const Group = ({ route, navigation }: { route: any, navigation: any }) => {
   // Toggle model for add new group
   const toggleModal = () => {
     setModalVisible(!isModalVisible);
+    setNameGroup('');
+    setTdChecked(false);
+    setTpChecked(false);
+    setAddGroupError('');
+    setGroupNameError('');
+    setTypeError('');
   };
   // Toggle model for edit group
   const toggleEditModal = () => {
     setModalEditVisible(!isModalEditVisible);
+    setGroupNameErrorEdit('');
+    setTypeErrorEdit('');
+    setEditGroupError('');
   };
   // Handel const for add new group
-  const handleSave = () => {
-    addGroup();
-    toggleModal();
+  const handleSave = async () => {
+
+    const isValid = await validateAddGroup();
+
+    if (isValid) {
+      addGroup();
+      toggleModal();
+      setNameGroup('');
+      setTdChecked(false);
+      setTpChecked(false);
+    }
+
   };
-  const handleSaveEdit = () => {
-    editGroup();
-    toggleEditModal();
+  const handleSaveEdit = async () => {
+    const isValid = await validateEditGroup();
+    if (isValid) {
+      editGroup();
+      toggleEditModal();
+    }
   };
   // Database functions
   useEffect(() => {
@@ -99,10 +117,10 @@ const Group = ({ route, navigation }: { route: any, navigation: any }) => {
   }, []);
 
   // fetch all data group from sqlite db
-  useEffect(() => {
+  const fetchGroup = () => {
     db.transaction((tx) => {
       tx.executeSql(
-        'SELECT * FROM table_group WHERE class_id=?',
+        'SELECT * FROM table_group WHERE class_id=? ORDER BY class_id DESC',
         [class_id],
         (tx, results) => {
           var temp = [];
@@ -114,8 +132,78 @@ const Group = ({ route, navigation }: { route: any, navigation: any }) => {
         }
       );
     });
+  }
+  useEffect(() => {
+    fetchGroup();
   }, []);
 
+
+  // Validation state variables --> add group
+  const [groupNameError, setGroupNameError] = useState('');
+  const [typeError, setTypeError] = useState('');
+  const [addGroupError, setAddGroupError] = useState('');
+
+  const validateAddGroup = () => {
+    setGroupNameError('');
+    setTypeError('');
+    setAddGroupError('');
+
+    return new Promise((resolve) => {
+      let isValid = true;
+
+      if (!nameGroup.trim()) {
+        setGroupNameError('Name group is required');
+        isValid = false;
+      }
+
+      if (!isTdChecked && !isTpChecked) {
+        setTypeError('Type is required');
+        isValid = false;
+      }
+
+      const upperCaseNameGroup = nameGroup.toUpperCase();
+
+      db.transaction((txn) => {
+        let groupTypeQuery = null;
+
+        if (isTdChecked && !isTpChecked) {
+          groupTypeQuery = 'TD';
+        } else if (!isTdChecked && isTpChecked) {
+          groupTypeQuery = 'TP';
+        } else if (isTdChecked && isTpChecked) {
+          groupTypeQuery = 'TP and TD';
+        }
+
+        if (groupTypeQuery == 'TP and TD') {
+          txn.executeSql(
+            "SELECT * FROM table_group WHERE UPPER(group_name) = ? AND class_id=? ",
+            [upperCaseNameGroup, class_id],
+            (tx, res) => {
+              if (res.rows.length > 0) {
+                const existingGroup = res.rows.item(0);
+                setAddGroupError(` ${existingGroup.group_name} ${existingGroup.group_type} already exists.`);
+                isValid = false;
+              }
+              resolve(isValid);
+            }
+          );
+        } else {
+          txn.executeSql(
+            "SELECT * FROM table_group WHERE UPPER(group_name) = ? AND group_type = ? AND class_id=?",
+            [upperCaseNameGroup, groupTypeQuery, class_id],
+            (tx, res) => {
+              if (res.rows.length > 0) {
+                const existingGroup = res.rows.item(0);
+                setAddGroupError(` ${existingGroup.group_name} ${existingGroup.group_type} already exists.`);
+                isValid = false;
+              }
+              resolve(isValid);
+            }
+          );
+        }
+      });
+    });
+  };
   const addGroup = () => {
     db.transaction((txn) => {
       const insertQuery = 'INSERT INTO table_group( group_name, group_type, class_id) VALUES (?,?,?)';
@@ -139,6 +227,8 @@ const Group = ({ route, navigation }: { route: any, navigation: any }) => {
       console.log('Error adding group');
       console.log(res);
     }
+
+    fetchGroup();
   };
 
   // Delet Group
@@ -147,26 +237,114 @@ const Group = ({ route, navigation }: { route: any, navigation: any }) => {
     deleteGroupId = item.group_id.toString();
     deleteGroup();
   }
+
   const deleteGroup = () => {
-    db.transaction((txn) => {
-      txn.executeSql(
-        'DELETE FROM table_group WHERE group_id=?',
-        [deleteGroupId],
-        (tx, res) => {
-          if (res.rowsAffected === 1) {
-            Alert.alert('Group deleted successfully!');
-            console.log('group deleted');
-          } else {
-            Alert.alert('Error deleting group');
-            console.log('Error deleting group');
-            console.log(res);
-          }
-        }
-      );
-    });
+    Alert.alert(
+      'Confirm Deletion',
+      'Do you really want to delete this group?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete',
+          onPress: async () => {
+            try {
+              await db.transaction((txn) => {
+                txn.executeSql(
+                  'DELETE FROM table_group WHERE group_id=?',
+                  [deleteGroupId],
+                  (tx, res) => {
+                    if (res.rowsAffected === 1) {
+                      Alert.alert('Group deleted successfully!');
+                    } else {
+                      Alert.alert('Error deleting group');
+                    }
+                  }
+                );
+              });
+              fetchGroup();
+
+            } catch (error) {
+              console.error('Error deleting group:', error);
+              Alert.alert('Error deleting group');
+            }
+          },
+        },
+      ]
+    );
   };
 
   // Edit group to 
+
+  // Validation state variables --> edit group
+  const [groupNameErrorEdit, setGroupNameErrorEdit] = useState('');
+  const [typeErrorEdit, setTypeErrorEdit] = useState('');
+  const [editGroupError, setEditGroupError] = useState('');
+
+  const validateEditGroup = () => {
+    setGroupNameErrorEdit('');
+    setTypeErrorEdit('');
+    setEditGroupError('');
+
+    return new Promise((resolve) => {
+      let isValid = true;
+
+      if (!editGroupName.trim()) {
+        setGroupNameErrorEdit('Name group is required');
+        isValid = false;
+      }
+      if (isEditTdChecked == false && isEditTpChecked == false) {
+        setTypeErrorEdit('Type is required');
+        isValid = false;
+      }
+
+      const upperCaseNameGroup = editGroupName.toUpperCase();
+
+      db.transaction((txn) => {
+        let groupTypeQuery: string | null = null;
+        if (isEditTdChecked && !isEditTpChecked) {
+          groupTypeQuery = 'TD';
+        } else if (!isEditTdChecked && isEditTpChecked) {
+          groupTypeQuery = 'TP';
+        }
+
+        if (groupTypeQuery !== null) {
+          txn.executeSql(
+            "SELECT * FROM table_group WHERE group_id = ? AND class_id=?",
+            [editGroupId,class_id],
+            (tx, res) => {
+              const GroupExist = res.rows.item(0);
+              if (
+                upperCaseNameGroup !== GroupExist.group_name.toUpperCase()
+              ) {
+                txn.executeSql(
+                  "SELECT * FROM table_group WHERE UPPER(group_name) = ? AND group_type = ? AND class_id=?",
+                  [upperCaseNameGroup, groupTypeQuery,class_id],
+                  (tx, res) => {
+                    if (res.rows.length > 0) {
+                      const GroupExist = res.rows.item(0);
+                      console.log(GroupExist.group_name);
+                      setEditGroupError('This group already exists.');
+                      isValid = false;
+                      console.log('This group already exists.');
+                    }
+                    resolve(isValid);
+                  }
+                );
+              } else {
+                resolve(isValid);
+              }
+            }
+          );
+        } else {
+          resolve(isValid);
+        }
+      });
+
+    });
+  };
   var [editGroupName, setEditGroupName] = useState('');
   var [editGroupId, setEditGroupId] = useState('');
 
@@ -205,6 +383,7 @@ const Group = ({ route, navigation }: { route: any, navigation: any }) => {
       console.log('Error updating group');
       console.log(res);
     }
+    fetchGroup();
   };
   return (
     <SafeAreaView style={{ flex: 1, marginHorizontal: 16, marginTop: 45 }}>
@@ -221,7 +400,7 @@ const Group = ({ route, navigation }: { route: any, navigation: any }) => {
         <TextInput style={{ paddingLeft: 8, fontSize: 16, }} placeholder='Search...'></TextInput>
       </View>
 
-      
+
       <View style={{ alignItems: 'center' }}>
         <TouchableOpacity style={styles.addNewClassButton} onPress={() => {
           setModalVisible(true); // Open add group modal
@@ -230,38 +409,47 @@ const Group = ({ route, navigation }: { route: any, navigation: any }) => {
           <Text style={styles.buttonText}>Add New Group</Text>
         </TouchableOpacity>
       </View>
-      {/* Add New Class Modal */}
+      {/* Add New group Modal */}
       <Modal isVisible={isModalVisible} onBackdropPress={() => setModalVisible(false)} >
         <View style={styles.modalContent}>
           <Text style={{ fontSize: 22, fontWeight: 'bold', marginBottom: 10 }}>Add New Group</Text>
-
-          <View><Text>Name Group:</Text></View>
+          {addGroupError.trim() ? (
+            <Text style={{ color: 'red' }}>{addGroupError}</Text>
+          ) : null}
+          <View><Text style={{ marginTop: 5, marginBottom: 5, fontWeight: '600' }}>Name Group:</Text></View>
           <TextInput style={styles.modalInput}
             placeholder='Enter Name of Group'
             value={nameGroup}
             onChangeText={(text) => setNameGroup(text)}
           />
+          {groupNameError.trim() ? (
+            <Text style={{ color: 'red' }}>{groupNameError}</Text>
+          ) : null}
           <View>
-            <Text>Type Group:</Text>
-            <CheckBox style={styles.modalInput}
-              title="TD"
-              containerStyle={{ backgroundColor: 'transparent', borderWidth: 0 }}
-              textStyle={{ color: '#333' }}
-              checkedColor="#000"
-              uncheckedColor="#ccc"
-              checked={isTdChecked}
-              onPress={handleTdCheckboxChange}
-
-            />
-            <CheckBox
-              title="TP"
-              containerStyle={{ backgroundColor: 'transparent', borderWidth: 0 }}
-              textStyle={{ color: '#333' }}
-              checkedColor="#000"
-              uncheckedColor="#ccc"
-              checked={isTpChecked}
-              onPress={handleTpCheckboxChange}
-            />
+            <Text style={{ marginTop: 5, marginBottom: 5, fontWeight: '600' }}>Type Group:</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <CheckBox
+                title="TD"
+                containerStyle={{ backgroundColor: 'transparent', borderWidth: 0 }}
+                textStyle={{ color: '#000', fontWeight: 'normal' }}
+                checkedColor="#000"
+                uncheckedColor="#ccc"
+                checked={isTdChecked}
+                onPress={handleTdCheckboxChange}
+              />
+              <CheckBox
+                title="TP"
+                containerStyle={{ backgroundColor: 'transparent', borderWidth: 0 }}
+                textStyle={{ color: '#000', fontWeight: 'normal' }}
+                checkedColor="#000"
+                uncheckedColor="#ccc"
+                checked={isTpChecked}
+                onPress={handleTpCheckboxChange}
+              />
+            </View>
+            {typeError.trim() ? (
+              <Text style={{ color: 'red' }}>{typeError}</Text>
+            ) : null}
           </View>
           <View style={styles.buttonEdit}>
             <TouchableOpacity onPress={handleSave} style={styles.modalButton}>
@@ -273,7 +461,7 @@ const Group = ({ route, navigation }: { route: any, navigation: any }) => {
           </View></View>
       </Modal>
 
-      {/* classes */}
+      {/* groups */}
       <View style={{ marginTop: 22, flex: 1 }}>
 
         <Text style={{ fontSize: 22, fontWeight: 'bold', }}>Groups</Text>
@@ -281,8 +469,8 @@ const Group = ({ route, navigation }: { route: any, navigation: any }) => {
           <FlatList data={groupList} renderItem={({ item }) =>
             <View style={{ backgroundColor: colors.light, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 7, borderRadius: 16, marginVertical: 16, alignItems: 'center', }}>
               <TouchableOpacity
-                onPress={() => navigation.navigate('NavigateMember', 
-                { group_id: item.group_id, group_name: item.group_name,group_type: item.group_type, class_id: class_id, class_name:class_name , class_speciality:class_speciality, class_level:class_level })}
+                onPress={() => navigation.navigate('NavigateMember',
+                  { group_id: item.group_id, group_name: item.group_name, group_type: item.group_type, class_id: class_id, class_name: class_name, class_speciality: class_speciality, class_level: class_level })}
 
                 style={{ flexDirection: 'row', paddingLeft: 20, paddingRight: 20, paddingTop: 30, paddingBottom: 30 }}
               >
@@ -303,37 +491,49 @@ const Group = ({ route, navigation }: { route: any, navigation: any }) => {
         </View>
       </View>
 
-      
-      {/* This model view for edit class,  */}
+
+      {/* This model view for edit group,  */}
       <Modal isVisible={isModalEditVisible} onBackdropPress={() => setModalEditVisible(false)} >
         <View style={styles.modalContent}>
           <Text style={{ fontSize: 22, fontWeight: 'bold', marginBottom: 10 }}>Edit Group</Text>
-          <View><Text>Name Group</Text></View>
+          {editGroupError.trim() ? (
+            <Text style={{ color: 'red' }}>{editGroupError}</Text>
+          ) : null}
+          <View><Text style={{ marginTop: 5, marginBottom: 5, fontWeight: '600' }}>Name Group</Text></View>
           <TextInput style={styles.modalInput}
             value={editGroupName}
             onChangeText={(text) => setEditGroupName(text)}
           />
+          {groupNameErrorEdit.trim() ? (
+            <Text style={{ color: 'red' }}>{groupNameErrorEdit}</Text>
+          ) : null}
           <View>
-            <Text>Type Group:</Text>
-            <CheckBox style={styles.modalInput}
-              title="TD"
-              containerStyle={{ backgroundColor: 'transparent', borderWidth: 0 }}
-              textStyle={{ color: '#333' }}
-              checkedColor="#000"
-              uncheckedColor="#ccc"
-              checked={isEditTdChecked}
-              onPress={handleEditTdCheckboxChange}
+            <Text style={{ marginTop: 5, marginBottom: 5, fontWeight: '600' }}>Type Group:</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <CheckBox
+                // style={styles.modalInput}
+                title="TD"
+                containerStyle={{ backgroundColor: 'transparent', borderWidth: 0 }}
+                textStyle={{ color: '#000', fontWeight: 'normal' }}
+                checkedColor="#000"
+                uncheckedColor="#ccc"
+                checked={isEditTdChecked}
+                onPress={handleEditTdCheckboxChange}
 
-            />
-            <CheckBox
-              title="TP"
-              containerStyle={{ backgroundColor: 'transparent', borderWidth: 0 }}
-              textStyle={{ color: '#333' }}
-              checkedColor="#000"
-              uncheckedColor="#ccc"
-              checked={isEditTpChecked}
-              onPress={handleEditTpCheckboxChange}
-            />
+              />
+              <CheckBox
+                title="TP"
+                containerStyle={{ backgroundColor: 'transparent', borderWidth: 0 }}
+                textStyle={{ color: '#000', fontWeight: 'normal' }}
+                checkedColor="#000"
+                uncheckedColor="#ccc"
+                checked={isEditTpChecked}
+                onPress={handleEditTpCheckboxChange}
+              />
+            </View>
+            {typeErrorEdit.trim() ? (
+              <Text style={{ color: 'red' }}>{typeErrorEdit}</Text>
+            ) : null}
           </View>
           <View style={styles.buttonEdit}>
             <TouchableOpacity onPress={handleSaveEdit} style={styles.modalButton}>
