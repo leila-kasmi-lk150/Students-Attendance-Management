@@ -1,5 +1,5 @@
 import React, { Component, useEffect, useState } from 'react';
-import { Alert, FlatList, StyleSheet, Text, View, TouchableOpacity, Dimensions, TextInput,} from 'react-native';
+import { Alert, FlatList, StyleSheet, Text, View, TouchableOpacity, Dimensions, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { DataTable } from 'react-native-paper';
 import { Dropdown } from 'react-native-element-dropdown';
@@ -7,8 +7,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../component/Constant';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import Modal from 'react-native-modal';
+import * as Sqlite from 'expo-sqlite';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import moment from 'moment';
 const Session = ({ route, navigation }: { route: any, navigation: any }) => {
-
+  let db = Sqlite.openDatabase('Leiknach.db');
   const screenWidth = Dimensions.get('window').width;
   const { class_id } = route.params;
   const { class_name } = route.params;
@@ -20,79 +24,261 @@ const Session = ({ route, navigation }: { route: any, navigation: any }) => {
 
   // Model for add new session 
   const [isModalVisible, setModalVisible] = useState(false);
-  // Toggle model for add new session
   const toggleModal = () => {
     setModalVisible(!isModalVisible);
+    setAddSessionError('');
   };
   const handleSave = async () => {
-    // this alert just for test , replace with the name of function that add new session
-    Alert.alert('Session added successfully!');
-
-    // and this for close the modal ^^
-    toggleModal();
+    const isValid = await validateAddSession();
+    if (isValid) {
+      addSession();
+      toggleModal();
+      setAddSessionError('');
+    }
   };
   // Model for edit session
   const [isModalEditVisible, setModalEditVisible] = useState(false);
-  // Toggle model for edit session
   const toggleEditModal = () => {
     setModalEditVisible(!isModalEditVisible);
   };
   const handleSaveEdit = async () => {
-      toggleEditModal();
+    editSession();
+    toggleEditModal();
   };
+
+  // const for my dateTimePicker of add new session
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [selectedTime, setSelectedTime] = useState(new Date());
+  const [showTimePicker, setShowTimePicker] = useState(false);
+  const handleDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
+    if (selectedDate) {
+      setShowDatePicker(false);
+      const timestamp = event.nativeEvent.timestamp;
+      const newDate = timestamp ? new Date(timestamp) : new Date();
+
+      setSelectedDate(newDate);
+    }
+  };
+  const handleTimeChange = (event: DateTimePickerEvent, selectedTime?: Date) => {
+    if (selectedTime) {
+      setShowTimePicker(false);
+      const truncatedTime = moment(selectedTime).startOf('minute').toDate();
+      setSelectedTime(truncatedTime);
+    }
+  };
+  // =====================
   interface SessionItem {
     session_id: string;
     session_date: string;
     session_time: string;
     class_id: number;
     group_id: number;
+    checkAttendance:boolean;
   }
   const [sessionList, setSessionList] = useState<SessionItem[]>([]);
 
-  // later, delete this code (useEffect) when you work on database
-  // when you fill sessionList from there
-  // delete just useEffect, because you need sessionList and setSessionList variables ⚠
+  // Database functions
   useEffect(() => {
-    const initialSessionList: SessionItem[] = [
-      {
-        session_id: '1',
-        session_date: '06/09/2024',
-        session_time: '10:15',
-        class_id: 6,
-        group_id: 9,
-      },
-      {
-        session_id: '2',
-        session_date: '18/01/2024',
-        session_time: '08:30',
-        class_id: 6,
-        group_id: 9,
-      },
-      {
-        session_id: '3',
-        session_date: '19/01/2024',
-        session_time: '13:30',
-        class_id: 6,
-        group_id: 9,
-      },
-      {
-        session_id: '4',
-        session_date: '20/01/2024',
-        session_time: '15:30',
-        class_id: 6,
-        group_id: 9,
-      },
-    ];
-    setSessionList(initialSessionList);
+    db.transaction((txn) => {
+      // Create the table 'table_session'
+      txn.executeSql(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='table_session'",
+        [],
+        (tx, res) => {
+          console.log('item:', res.rows.length);
+          if (res.rows.length === 0) {
+            txn.executeSql('DROP TABLE IF EXISTS table_session', []);
+            txn.executeSql(
+              'CREATE TABLE IF NOT EXISTS table_session (session_id INTEGER PRIMARY KEY AUTOINCREMENT, checkAttendance BOOLEAN DEFAULT 0, session_date DATE NOT NULL,session_time TIME NOT NULL, class_id INTEGER, group_id INTEGER, FOREIGN KEY (class_id) REFERENCES table_class(class_id) ON DELETE CASCADE, FOREIGN KEY (group_id) REFERENCES table_group(group_id) ON DELETE CASCADE)',
+              []
+            );
+            console.log('Created table_session');
+          } else {
+            console.log('Table_session already exists');
+          }
+        }
+      );
+    });
   }, []);
+
+  // fetch all data Session from sqlite db
+  const fetchSession = () => {
+    db.transaction((tx) => {
+      tx.executeSql(
+        'SELECT * FROM table_session WHERE group_id=?',
+        [group_id],
+        (tx, results) => {
+          var temp = [];
+          for (let i = 0; i < results.rows.length; ++i) {
+            console.log(results.rows.item(i));
+            temp.push(results.rows.item(i));
+          }
+          setSessionList(temp);
+        }
+      );
+    });
+  }
+  useEffect(() => {
+    fetchSession();
+  }, []);
+
+  // Add new Session with validation
+  const [addSessionError, setAddSessionError] = useState('');
+  const formattedDate = selectedDate.toISOString().split('T')[0]; // Format as 'YYYY-MM-DD'
+  const formattedTime = selectedTime.toTimeString().split(' ')[0]; // Format as 'HH:mm'
+  const validateAddSession = () => {
+    setAddSessionError('');
+    return new Promise((resolve) => {
+      let isValid = true;
+      db.transaction((txn) => {
+        txn.executeSql(
+          "SELECT * FROM table_session WHERE session_date = ? AND session_time=? AND group_id=? ",
+          [formattedDate, formattedTime, group_id],
+          (tx, res) => {
+            if (res.rows.length > 0) {
+              const existingGroup = res.rows.item(0);
+              setAddSessionError(` This session already exists.`);
+              console.log('This session already exists.');
+
+              isValid = false;
+            } else {
+              console.log('20222.');
+            }
+            resolve(isValid);
+          }
+        );
+      });
+    });
+  };
+  const addSession = () => {
+    db.transaction((tx) => {
+      tx.executeSql(
+        'INSERT INTO table_session (session_date, session_time, class_id, group_id) VALUES (?, ?, ?, ?)',
+        [formattedDate, formattedTime, class_id, group_id],
+        (_, { rowsAffected, insertId }) => {
+          if (rowsAffected > 0) {
+            console.log(`Session added successfully! ID: ${insertId}`);
+            Alert.alert('Session added successfully!')
+            fetchSession();
+          } else {
+            console.error('Error adding session: No rows affected.');
+            Alert.alert('Error adding session')
+          }
+        }
+      );
+    });
+  };
+
+  // Delet Session
+  var [deleteSessionId, setDeleteSessionId] = useState('');
+  const getDataDeleteSession = (item: any) => {
+    deleteSessionId = item.session_id.toString();
+    deleteSession();
+  }
+
+  const deleteSession = () => {
+    Alert.alert(
+      'Confirm Deletion',
+      'Do you really want to delete this session?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete',
+          onPress: async () => {
+            try {
+              await db.transaction((txn) => {
+                txn.executeSql(
+                  'DELETE FROM table_session WHERE session_id=?',
+                  [deleteSessionId],
+                  (tx, res) => {
+                    if (res.rowsAffected === 1) {
+                      Alert.alert('Session deleted successfully!');
+                    } else {
+                      Alert.alert('Error deleting session');
+                    }
+                  }
+                );
+              });
+              fetchSession();
+
+            } catch (error) {
+              console.error('Error deleting Session:', error);
+              Alert.alert('Error deleting Session');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  // Edit Session 
+  // const for my dateTimePicker of edit session
+  const [selectedDateEdit, setSelectedDateEdit] = useState(new Date());
+  const [showDatePickerEdit, setShowDatePickerEdit] = useState(false);
+  const [selectedTimeEdit, setSelectedTimeEdit] = useState(new Date());
+  const [showTimePickerEdit, setShowTimePickerEdit] = useState(false);
+  const handleDateChangeEdit = (event: DateTimePickerEvent, selectedDateEdit?: Date) => {
+    if (selectedDateEdit) {
+      setShowDatePickerEdit(false);
+      const timestamp = event.nativeEvent.timestamp;
+      const newDate = timestamp ? new Date(timestamp) : new Date();
+      setSelectedDateEdit(newDate);
+    }
+  };
+  // Function to handle time change in edit session
+  const handleTimeChangeEdit = (event: DateTimePickerEvent, selectedTimeEdit?: Date) => {
+    if (selectedTimeEdit) {
+      setShowTimePickerEdit(false);
+      const truncatedTime = moment(selectedTimeEdit).startOf('minute').toDate();
+      setSelectedTimeEdit(truncatedTime);
+    }
+  };
+  var [editSessionId, setEditSessionId] = useState('');
+  const getDataEditingSession = (item: any) => {
+    setEditSessionId(item.session_id.toString());
+
+    // Ensure item.session_date is a valid Date object
+    const sessionDate = moment(item.session_date, 'YYYY-MM-DD').toDate();
+    setSelectedDateEdit(sessionDate);
+
+    // Ensure item.session_time is a valid Date object
+    const sessionTime = moment(item.session_time, 'HH:mm').toDate();
+    setSelectedTimeEdit(sessionTime);
+  };
+
+  const formattedDateEdit = moment(selectedDateEdit).format('YYYY-MM-DD');
+  const formattedTimeEdit = moment(selectedTimeEdit).format('HH:mm');
+
+  const editSession = () => {
+    db.transaction((txn) => {
+      txn.executeSql(
+        'UPDATE table_session SET session_date=?, session_time=? WHERE session_id=?',
+        [formattedDateEdit, formattedTimeEdit, editSessionId],
+        (tex, res) => {
+          if (res.rowsAffected === 1) {
+            Alert.alert('Session updated successfully!');
+            console.log('Session updated');
+          } else {
+            Alert.alert('Error updating session');
+            console.log('Error updating session');
+            console.log(res);
+          }
+        }
+      );
+      fetchSession();
+    });
+  };
 
   return (
     <SafeAreaView style={{ flex: 1, marginHorizontal: 16, marginTop: 20 }}>
       {/* header  */}
       <View style={{ flexDirection: 'row' }}>
         <Ionicons name="ios-arrow-back" size={25} color="#05BFDB" style={{ top: 10, marginRight: 15 }}
-          onPress={() => navigation.navigate('Group',
-            { class_id: class_id, class_name: class_name, class_speciality: class_speciality, class_level: class_level })}
+          onPress={() => navigation.navigate('Group', { class_id: class_id, class_name: class_name, class_speciality: class_speciality, class_level: class_level })}
         />
         <Text style={{ flex: 1, fontSize: 25, fontWeight: '700' }}>{class_name} {group_name} {group_type}</Text>
       </View>
@@ -124,26 +310,13 @@ const Session = ({ route, navigation }: { route: any, navigation: any }) => {
             <Text style={{ color: colors.gray, fontSize: 10 }}> 06/09/2024</Text>
           </View>
         </View>
-        <View style={{
-          backgroundColor: "#fff",
-          borderRadius: 10,
-          marginVertical: 25,
-          padding: 15,
-          shadowColor: "#000",
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.1, shadowRadius: 7,
-          width: screenWidth * 0.2,
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}>
+        <View style={{ backgroundColor: "#fff", borderRadius: 10, marginVertical: 25, padding: 15, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 7, width: screenWidth * 0.2, alignItems: 'center', justifyContent: 'center', }}>
           <View style={{ alignItems: 'center', justifyContent: 'center', }}>
             <Ionicons name='download' size={20} color="#05BFDB" />
             <View><Text style={{ color: colors.gray, fontWeight: 'bold', fontSize: 10 }}>Export</Text></View>
-
           </View>
         </View>
       </View>
-
 
       {/* Add new session */}
       <View style={{ alignItems: 'center' }}>
@@ -155,21 +328,47 @@ const Session = ({ route, navigation }: { route: any, navigation: any }) => {
         </TouchableOpacity>
       </View>
       {/* Add New Session Modal */}
-      <Modal isVisible={isModalVisible} onBackdropPress={() => setModalVisible(false)} >
+      <Modal isVisible={isModalVisible} onBackdropPress={() => setModalVisible(false)}>
         <View style={styles.modalContent}>
           <Text style={{ fontSize: 22, fontWeight: 'bold', marginBottom: 10 }}>Add New Session</Text>
-          <View><Text style={{ marginTop: 5, marginBottom: 5, fontWeight: '600' }}>Date:</Text></View>
-          <TextInput style={[styles.modalInput, { width: '100%' }]}
-            placeholder='Enter Date'
-            // value={}
-            // onChangeText={}
-          />
-          <View><Text style={{ marginTop: 5, marginBottom: 5, fontWeight: '600' }}>Time:</Text></View>
-          <TextInput style={[styles.modalInput, { width: '100%' }]}
-            placeholder='Enter Time'
-            // value={}
-            // onChangeText={}
-          />
+          {addSessionError.trim() ? (<Text style={{ color: 'red' }}>{addSessionError}</Text>) : null}
+          <TouchableOpacity onPress={() => setShowDatePicker(true)}>
+            <View>
+              <Text style={{ marginTop: 5, marginBottom: 5, fontWeight: '600' }}>Date:</Text>
+              <Text style={{ borderColor: 'gray', backgroundColor: '#fff', borderWidth: 1, marginBottom: 20, padding: 10, borderRadius: 10, }}>
+                <Ionicons name="calendar" size={14} color={colors.dark} />   {selectedDate.toDateString()}
+              </Text>
+            </View>
+          </TouchableOpacity>
+          {showDatePicker && (
+            <DateTimePicker
+              value={selectedDate}
+              mode="date"
+              is24Hour={true}
+              display="default"
+              onChange={handleDateChange}
+            />
+          )}
+
+          <View >
+            <TouchableOpacity onPress={() => setShowTimePicker(true)}>
+              <Text style={{ marginTop: 5, marginBottom: 5, fontWeight: '600' }}>Time:</Text>
+              <Text style={{ borderColor: 'gray', backgroundColor: '#fff', borderWidth: 1, marginBottom: 20, padding: 10, borderRadius: 10, }}>
+                <Ionicons name="time" size={14} color={colors.dark} />   {moment(selectedTime).format('HH:mm')}
+              </Text>
+            </TouchableOpacity>
+
+            {showTimePicker && (
+              <DateTimePicker
+                value={selectedTime}
+                mode="time"
+                is24Hour={true}
+                display="default"
+                onChange={handleTimeChange}
+              />
+            )}
+          </View>
+
           <View style={styles.buttonEdit}>
             <TouchableOpacity onPress={handleSave} style={styles.modalButton}>
               <Text style={styles.buttonTexts}>Save</Text>
@@ -177,7 +376,8 @@ const Session = ({ route, navigation }: { route: any, navigation: any }) => {
             <TouchableOpacity onPress={toggleModal} style={styles.modalButton}>
               <Text style={styles.buttonTexts}>Close</Text>
             </TouchableOpacity>
-          </View></View>
+          </View>
+        </View>
       </Modal>
       {/* List of Session */}
       <View style={{ marginTop: 22, flex: 1 }}>
@@ -187,21 +387,21 @@ const Session = ({ route, navigation }: { route: any, navigation: any }) => {
           <FlatList data={sessionList} renderItem={({ item }) =>
             <View style={{ backgroundColor: colors.light, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 7, borderRadius: 16, marginVertical: 16, alignItems: 'center', }}>
               <TouchableOpacity
-
-                onPress={() => navigation.navigate('PresenceScreens',
-                  { session_id: item.session_id, group_id: group_id, group_name: group_name, group_type: group_type, class_id: class_id, class_name: class_name, class_speciality: class_speciality, class_level: class_level })}
-
+                onPress={() => navigation.navigate('PresenceScreens', { session_id: item.session_id, checkAttendance: item.checkAttendance, group_id: group_id, group_name: group_name, group_type: group_type, class_id: class_id, class_name: class_name, class_speciality: class_speciality, class_level: class_level })}
                 style={{ flexDirection: 'row', paddingLeft: 20, paddingRight: 20, paddingTop: 30, paddingBottom: 30 }}
               >
-                <Text style={{ flex: 1 }}>{item.session_date} - {item.session_time}</Text>
+                <Text style={{ flex: 1 }}>
+                  {moment(item.session_date).format('ddd, MMM D YYYY')} - {moment(item.session_time, 'HH:mm:ss').format('HH:mm')}
+                </Text>
                 <Icon name="edit"
                   onPress={() => {
                     setModalEditVisible(true); // Open the modal
+                    getDataEditingSession(item);
                   }}
                   style={{ marginRight: 10, top: 2 }} size={20} color="#05BFDB" />
                 <Icon name="trash" size={20} color="#05BFDB"
                   onPress={() => {
-                    // getDataDeleteStudent(item);
+                    getDataDeleteSession(item);
                   }} />
               </TouchableOpacity>
             </View>
@@ -213,17 +413,43 @@ const Session = ({ route, navigation }: { route: any, navigation: any }) => {
       <Modal isVisible={isModalEditVisible} onBackdropPress={() => setModalEditVisible(false)} >
         <View style={styles.modalContent}>
           <Text style={{ fontSize: 22, fontWeight: 'bold', marginBottom: 10 }}>Edit Session</Text>
-          <View><Text style={{ marginTop: 5, marginBottom: 5, fontWeight: '600' }}>Date</Text></View>
-          <TextInput style={styles.modalInput}
-            // value={}
-            // onChangeText={}
-          />
-          <View><Text style={{ marginTop: 5, marginBottom: 5, fontWeight: '600' }}>Time</Text></View>
-          <TextInput style={styles.modalInput}
-            // value={}
-            // onChangeText={}
-          />
-          
+          <TouchableOpacity onPress={() => setShowDatePickerEdit(true)}>
+            <View>
+              <Text style={{ marginTop: 5, marginBottom: 5, fontWeight: '600' }}>Date:</Text>
+              <Text style={{ borderColor: 'gray', backgroundColor: '#fff', borderWidth: 1, marginBottom: 20, padding: 10, borderRadius: 10, }}>
+                <Ionicons name="calendar" size={14} color={colors.dark} />  {selectedDateEdit ? selectedDateEdit.toDateString() : ''}
+              </Text>
+            </View>
+          </TouchableOpacity>
+
+          {showDatePickerEdit && (
+            <DateTimePicker
+              value={selectedDateEdit}
+              mode="date"
+              is24Hour={true}
+              display="default"
+              onChange={handleDateChangeEdit}
+            />
+          )}
+          <TouchableOpacity onPress={() => setShowTimePickerEdit(true)}>
+            <View>
+              <Text style={{ marginTop: 5, marginBottom: 5, fontWeight: '600' }}>Time:</Text>
+              <Text style={{ borderColor: 'gray', backgroundColor: '#fff', borderWidth: 1, marginBottom: 20, padding: 10, borderRadius: 10, }}>
+                <Ionicons name="calendar" size={14} color={colors.dark} /> {selectedTimeEdit ? moment(selectedTimeEdit).format('HH:mm') : ''}
+              </Text>
+            </View>
+          </TouchableOpacity>
+
+          {showTimePickerEdit && (
+            <DateTimePicker
+              value={selectedTimeEdit}
+              mode="time"
+              is24Hour={true}
+              display="default"
+              onChange={handleTimeChangeEdit}
+            />
+          )}
+
           <View style={styles.buttonEdit}>
             <TouchableOpacity onPress={handleSaveEdit} style={styles.modalButton}>
               <Text style={styles.buttonTexts}>Save</Text>
@@ -232,7 +458,7 @@ const Session = ({ route, navigation }: { route: any, navigation: any }) => {
               <Text style={styles.buttonTexts}>Close</Text>
             </TouchableOpacity>
           </View>
-          </View>
+        </View>
       </Modal>
     </SafeAreaView>
   )
