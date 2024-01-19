@@ -231,7 +231,8 @@ const Session = ({ route, navigation }: { route: any, navigation: any }) => {
             <TouchableOpacity onPress={toggleEditModal} style={styles.modalButton}>
               <Text style={styles.buttonTexts}>Close</Text>
             </TouchableOpacity>
-          </View></View>
+          </View>
+          </View>
       </Modal>
     </SafeAreaView>
   )
