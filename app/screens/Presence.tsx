@@ -200,6 +200,29 @@ const Presence = ({ route, navigation }: { route: any; navigation: any }) => {
     group_id: number;
   }
 
+  // serach 
+  const [searchText, setSearchText] = useState('');
+  const searchStudent = () => {
+    db.transaction((tx) => {
+      tx.executeSql(
+        'SELECT TS.student_id, TS.student_firstName, TS.student_lastName, TP.comment, TP.state, TP.class_id, TP.group_id FROM table_students TS LEFT JOIN table_presence TP ON TS.student_id = TP.student_id AND TP.session_id = ? WHERE TS.student_firstName LIKE ? OR TS.student_lastName LIKE ? AND TP.session_id=?',
+        [session_id,`%${searchText}%`, `%${searchText}%`, session_id],
+        (tx, results) => {
+          var temp = [];
+          for (let i = 0; i < results.rows.length; ++i) {
+            console.log(results.rows.item(i));
+            temp.push(results.rows.item(i));
+
+          }
+          setPresenceList(temp);
+        }
+      );
+    });
+  };
+
+  useEffect(() => {
+    searchStudent();
+  }, [searchText]);
   const [presenceList, setPresenceList] = useState<PresenceItem[]>([]);
   const fetchPresence = () => {
     db.transaction((tx) => {
@@ -217,6 +240,7 @@ const Presence = ({ route, navigation }: { route: any; navigation: any }) => {
         }
       );
     });
+    setSearchText('');
   };
   // For Flatlist of check Attendance
   const [selectedStatusMap, setSelectedStatusMap] = useState<Record<string, string>>({}); // Map to store selectedStatus for each student
@@ -402,12 +426,17 @@ const Presence = ({ route, navigation }: { route: any; navigation: any }) => {
           // checkAttendance = true
           <View style={{ flex: 1 }}>
             {/* Search Section */}
-            <View style={styles.viewSearch}>
-              <Ionicons name="search-outline" size={24} color={colors.primary} />
+            <View style={{ backgroundColor: "#fff", flexDirection: "row", paddingVertical: 16, borderRadius: 10, paddingHorizontal: 16, marginVertical: 16, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 7 }}>
+              <Ionicons name="search-outline" size={24} color="#05BFDB" onPress={searchStudent} />
               <TextInput
-                style={{ paddingLeft: 8, fontSize: 16 }}
-                placeholder="Search for Student..."
+                style={{ paddingLeft: 8, fontSize: 16, flex: 1 }}
+                placeholder='Search for Student ...'
+                value={searchText}
+                onChangeText={(text) => setSearchText(text)}
               />
+              <TouchableOpacity onPress={fetchPresence}>
+                <Ionicons name="close-outline" size={24} color="#05BFDB" />
+              </TouchableOpacity>
             </View>
 
             {/* add pie chart  */}

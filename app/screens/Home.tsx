@@ -473,7 +473,7 @@ const Home = ({ navigation }: { navigation: any }) => {
       );
     });
   };
-
+  
   const [collegeYearValue, setCollegeYearValue] = useState('');
   useEffect(() => {
     if (collegeYearClassList.length > 0) {
