@@ -1,101 +1,100 @@
-// checkAttendance= false
-<View style={{ marginTop: 22, flex: 1 }}>
-<Text style={{ fontSize: 22, fontWeight: "bold" }}> Check Attendance </Text>
-<View style={{ flex: 1 }}>
-  <FlatList
-    data={studentList}
-    renderItem={renderStudentItem}
-    keyExtractor={(item) => item.student_id.toString()}
-  />
-  {selectedStudent && (
-    <Modal
-      isVisible={isModalPresenceVisible}
-      onBackdropPress={() => setModalPresenceVisible(false)}
-    >
-      <View style={styles.modalContent}>
-        <Text
-          style={{
-            fontSize: 22,
-            fontWeight: "bold",
-            marginBottom: 10,
-          }}
-        >
-          {selectedStudent.student_lastName}{" "}
-          {selectedStudent.student_firstName}
-        </Text>
-        <View>
-          <Text
-            style={{
-              marginTop: 5,
-              marginBottom: 5,
-              fontWeight: "600",
-            }}
-          >
-            State:
-          </Text>
-        </View>
-        <RadioButton.Group
-          onValueChange={(value) => setSelectedStatus(value)}
-          value={selectedStatus}
-        >
-          <View style={{ flexDirection: "row" }}>
-            <RadioButton.Item label="Present" value="present" />
-            <RadioButton.Item label="Absent" value="absent" />
+import React from 'react';
+import { Text } from 'react-native';
+import { PieChart } from 'react-native-chart-kit';
+import { colors } from '../component/Constant';
+
+interface AttendancePieChartProps {
+  data: { name: string; value: number }[];
+}
+
+const chartConfig = {
+  backgroundGradientFrom: '#1E2923',
+  backgroundGradientFromOpacity: 0,
+  backgroundGradientTo: '#08130D',
+  backgroundGradientToOpacity: 0.5,
+  color: (opacity = 1) => `rgba(26, 255, 146, ${opacity})`,
+};
+
+const AttendancePieChart: React.FC<AttendancePieChartProps> = ({ data }) => {
+  return (
+    <>
+      <Text>Pie Chart for Attendance States</Text>
+      <PieChart
+        data={data}
+        width={300}
+        height={200}
+        chartConfig={chartConfig}
+        accessor="value"
+        backgroundColor="transparent"
+        paddingLeft="15"
+      />
+    </>
+  );
+};
+
+export default AttendancePieChart;
+
+
+
+// Import other necessary dependencies
+
+const Presence: React.FC<Props> = ({ route, navigation }) => {
+  // ... Other code ...
+
+  const [attendanceData, setAttendanceData] = useState<{ name: string; value: number }[]>([]);
+
+  // Fetch and process attendance data for the selected session
+  const fetchAttendanceData = () => {
+    db.transaction((tx) => {
+      tx.executeSql(
+        'SELECT state, COUNT(*) as count FROM table_presence WHERE session_id=? GROUP BY state',
+        [session_id],
+        (tx, results) => {
+          const data = results.rows._array as { state: string; count: number }[];
+          const processedData = data.map((item) => ({ name: item.state, value: item.count }));
+          setAttendanceData(processedData);
+        }
+      );
+    });
+  };
+
+  useEffect(() => {
+    fetchAttendanceData();
+  }, [session_id]);
+
+  // ... Other code ...
+
+  return (
+    <SafeAreaView style={{ flex: 1, marginHorizontal: 16, marginTop: 20 }}>
+      {/* ... Other code ... */}
+      {checkAttendance ? (
+        // ... Other code ...
+        <View style={{ marginTop: 22, flex: 1 }}>
+          <Text style={{ fontSize: 17, fontWeight: 'bold' }}>Consult Attendance</Text>
+          <View>
+            <FlatList
+              data={presenceList}
+              renderItem={renderConsultAttendance}
+              keyExtractor={(item) => item.student_id.toString()}
+            />
+            {selectedStudent && (
+              <Modal
+                isVisible={isModalPresenceVisible}
+                onBackdropPress={() => setModalPresenceVisible(false)}>
+                <View style={styles.modalContent}>
+                  {/* ... Other code ... */}
+                  <AttendancePieChart data={attendanceData} />
+                  {/* ... Other code ... */}
+                </View>
+              </Modal>
+            )}
           </View>
-        </RadioButton.Group>
-        <View>
-          <Text
-            style={{
-              marginTop: 5,
-              marginBottom: 5,
-              fontWeight: "600",
-            }}
-          >
-            Comment:
-          </Text>
         </View>
-        <TextInput
-          style={[styles.modalInput, { width: "100%" }]}
-          placeholder="Enter comment"
-        />
-        <View
-          style={{
-            flexDirection: "row",
-            justifyContent: "space-between",
-            width: 100,
-          }}
-        >
-          <TouchableOpacity
-            onPress={handleSavePresence}
-            style={{
-              backgroundColor: colors.primary,
-              padding: 10,
-              borderRadius: 5,
-              marginTop: 10,
-              alignItems: "center",
-              margin: 3,
-              left: 16,
-            }}
-          >
-            <Text style={styles.buttonTexts}>Save</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={toggleModalPresence}
-            style={{
-              backgroundColor: colors.primary,
-              padding: 10,
-              borderRadius: 5,
-              marginTop: 10,
-              alignItems: "center",
-              margin: 3,
-              left: 16,
-            }}
-          >
-            <Text style={styles.buttonTexts}>Close</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </Modal>
-  )}
-</View>
-</View>
+      ) : (
+        // ... Other code ...
+      )}
+    </SafeAreaView>
+  );
+};
+
+export default Presence;
