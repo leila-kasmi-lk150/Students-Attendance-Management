@@ -8,7 +8,8 @@ import { colors } from "../component/Constant";
 import { ScreenWidth } from "react-native-elements/dist/helpers";
 import Modal from "react-native-modal";
 import * as Sqlite from 'expo-sqlite';
-
+import { PieChart } from 'react-native-chart-kit';
+// import AttendancePieChart from "./AttendancePieChart";
 const Presence = ({ route, navigation }: { route: any; navigation: any }) => {
   let db = Sqlite.openDatabase('Leiknach.db');
   const screenWidth = Dimensions.get("window").width;
@@ -20,7 +21,73 @@ const Presence = ({ route, navigation }: { route: any; navigation: any }) => {
   const { group_name } = route.params;
   const { group_type } = route.params;
   const { session_id } = route.params;
-  const { checkAttendance } = route.params;
+
+
+  const chartConfig = {
+    backgroundGradientFrom: '#1E2923',
+    backgroundGradientFromOpacity: 0,
+    backgroundGradientTo: '#08130D',
+    backgroundGradientToOpacity: 0.5,
+    color: (opacity = 1) => `rgba(26, 255, 146, ${opacity})`,
+  };
+
+
+  const getColorForState = (state: string): string => {
+    switch (state) {
+      case 'P':
+        return '#2ecc71'; // Green for Present
+      case 'Ab':
+        return '#e74c3c'; // Red for Absent
+      case 'JA':
+        return '#f39c12'; // Orange for Justified Absence
+      default:
+        return '#000000'; // Default to black for unknown states
+    }
+  };
+  const [attendanceData, setAttendanceData] = useState<{ name: string; value: number; color: string }[]>([]);
+
+  // Fetch and process attendance data for the selected session
+  const fetchAttendanceData = () => {
+    db.transaction((tx) => {
+      tx.executeSql(
+        'SELECT state, COUNT(*) as count FROM table_presence WHERE session_id=? GROUP BY state',
+        [session_id],
+        (tx, results) => {
+          const data = results.rows._array as { state: string; count: number }[];
+          const processedData = data.map((item) => ({
+            name: item.state,
+            value: item.count,
+            color: getColorForState(item.state),
+          }));
+          setAttendanceData(processedData);
+        }
+      );
+    });
+  };
+
+  // Fetch attendance data when the component mounts
+  useEffect(() => {
+    fetchAttendanceData();
+  }, [session_id]);
+
+  const AttendancePieChart = ({ data }: { data: { name: string; value: number; color: string }[] }) => {
+    // ... (AttendancePieChart component code)
+
+    return (
+      <>
+        <Text style={{ fontSize: 17, fontWeight: "bold" }}>Pie Chart for Attendance States</Text>
+        <PieChart
+          data={data}
+          width={300}
+          height={200}
+          chartConfig={chartConfig}
+          accessor="value"
+          backgroundColor="transparent"
+          paddingLeft="15"
+        />
+      </>
+    );
+  };
 
   // Database functions
   useEffect(() => {
@@ -34,7 +101,7 @@ const Presence = ({ route, navigation }: { route: any; navigation: any }) => {
           if (res.rows.length === 0) {
             txn.executeSql('DROP TABLE IF EXISTS table_presence', []);
             txn.executeSql(
-              'CREATE TABLE IF NOT EXISTS table_presence (presence_id INTEGER PRIMARY KEY AUTOINCREMENT,state TEXT CHECK(state IN ("P", "Ab", "JA")),comment TEXT, class_id INTEGER,group_id INTEGER,session_id INTEGER,student_id INTEGER,FOREIGN KEY (class_id) REFERENCES table_class(class_id) ON DELETE CASCADE,FOREIGN KEY (group_id) REFERENCES table_group(group_id) ON DELETE CASCADE,FOREIGN KEY (session_id) REFERENCES table_session(session_id) ON DELETE CASCADE,FOREIGN KEY (student_id) REFERENCES table_students(student_id) ON DELETE CASCADE)',
+              'CREATE TABLE IF NOT EXISTS table_presence (presence_id INTEGER PRIMARY KEY AUTOINCREMENT,state VARCHAR(4),comment TEXT, class_id INTEGER,group_id INTEGER,session_id INTEGER,student_id INTEGER,FOREIGN KEY (class_id) REFERENCES table_class(class_id) ON DELETE CASCADE,FOREIGN KEY (group_id) REFERENCES table_group(group_id) ON DELETE CASCADE,FOREIGN KEY (session_id) REFERENCES table_session(session_id) ON DELETE CASCADE,FOREIGN KEY (student_id) REFERENCES table_students(student_id) ON DELETE CASCADE)',
               []
             );
             console.log('Created table_presence');
@@ -52,47 +119,66 @@ const Presence = ({ route, navigation }: { route: any; navigation: any }) => {
     setModalPresenceVisible(!isModalPresenceVisible);
   };
   const handleSavePresence = async () => {
-    // this alert just for test , replace with the name of function that add new session
-    Alert.alert("Presence !! Just Test");
-    toggleModalPresence();
+    try {
+      // Update the presenceList with the new state and comment
+      setPresenceList((prevList) =>
+        prevList.map((item) =>
+          item.student_id === selectedStudent?.student_id
+            ? { ...item, state: selectedStatus, comment: comment || null }
+            : item
+        )
+      );
+
+      // Update the data in the SQLite database
+      db.transaction((tx) => {
+        tx.executeSql(
+          'UPDATE table_presence SET state=?, comment=? WHERE student_id=? AND session_id=?',
+          [selectedStatus, comment, selectedStudent?.student_id, session_id],
+          (tx, results) => {
+            if (results.rowsAffected > 0) {
+              console.log('Data updated successfully in the database');
+            } else {
+              console.log('Failed to update data in the database');
+            }
+          }
+        );
+      });
+
+      fetchAttendanceData();
+      // Close the modal
+      toggleModalPresence();
+
+
+      Alert.alert("Presence saved successfully!");
+    } catch (error) {
+      console.error(error);
+      Alert.alert("Failed to save presence");
+    }
   };
 
-  const [selectedStudent, setSelectedStudent] = useState<StudentItem | null>(
-    null
-  );
-  const renderConsultAttendanc = ({ item }: { item: StudentItem }) => (
-    <View
-      style={{
-        backgroundColor: colors.light,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 7,
-        borderRadius: 16,
-        marginVertical: 16,
-        alignItems: "center",
-      }}
-    >
+
+  // For Flatlist of Consulte Attendance
+  var [selectedStatus, setSelectedStatus] = useState<string>('');
+  const [selectedStudent, setSelectedStudent] = useState<PresenceItem | null>(null);
+  const renderConsultAttendanc = ({ item }: { item: PresenceItem }) => (
+    <View style={{ backgroundColor: colors.light, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 7, borderRadius: 16, marginVertical: 16, alignItems: "center", }}>
       <TouchableOpacity
         onPress={() => {
           setSelectedStudent(item);
+          setComment(item.comment);
+          setSelectedStatus(item.state); // Set the initial state for the modal
           setModalPresenceVisible(true);
         }}
-        style={{
-          flexDirection: "row",
-          paddingLeft: 20,
-          paddingRight: 20,
-          paddingTop: 30,
-          paddingBottom: 30,
-        }}
+        style={{ flexDirection: "row", paddingLeft: 20, paddingRight: 20, paddingTop: 30, paddingBottom: 30, }}
       >
         <Text style={{ flex: 1 }}>{item.student_lastName} {item.student_firstName}
           {'\n'}
-          <Text style={{ color: 'green' }}>Present</Text>
-          {'\n'}
-          <Text style={{ color: colors.gray }}>
-            Lorem ipsum, dolor sit amet consectetued cum explicabo qui assumenda.
+          <Text style={{ color: item.state === 'P' ? 'green' : item.state === 'Ab' ? 'red' : item.state === 'JA' ? 'orange' : 'black' }}>
+            {item.state === 'P' ? 'Present' : item.state === 'Ab' ? 'Absent' : item.state === 'JA' ? 'Justified Absence' : 'Unknown State'}
           </Text>
+
+          {'\n'}
+          <Text style={{ color: colors.gray }}>{item.comment}</Text>
 
         </Text>
       </TouchableOpacity>
@@ -100,8 +186,39 @@ const Presence = ({ route, navigation }: { route: any; navigation: any }) => {
 
   );
 
+  const [comment, setComment] = useState<string | null | undefined>('');
+
+  // fetch all data Attendance state of student from sqlite db
+  interface PresenceItem {
+    session_id: number; // Assuming session_id is numerical
+    comment: string | null; // Allow for null comments
+    state: string;
+    student_id: number; // Assuming student_id is numerical
+    student_firstName: string;
+    student_lastName: string;
+    class_id: number;
+    group_id: number;
+  }
+
+  const [presenceList, setPresenceList] = useState<PresenceItem[]>([]);
+  const fetchPresence = () => {
+    db.transaction((tx) => {
+      tx.executeSql(
+        'SELECT TS.student_id, TS.student_firstName, TS.student_lastName, TP.comment, TP.state, TP.class_id, TP.group_id FROM table_students TS LEFT JOIN table_presence TP ON TS.student_id = TP.student_id AND TP.session_id = ? WHERE TP.session_id=?',
+        [session_id, session_id],
+        (tx, results) => {
+          var temp = [];
+          for (let i = 0; i < results.rows.length; ++i) {
+            console.log(results.rows.item(i));
+            temp.push(results.rows.item(i));
+
+          }
+          setPresenceList(temp);
+        }
+      );
+    });
+  };
   // For Flatlist of check Attendance
-  const [selectedStatus, setSelectedStatus] = useState('P');
   const [selectedStatusMap, setSelectedStatusMap] = useState<Record<string, string>>({}); // Map to store selectedStatus for each student
   const handleRadioButtonChange = (studentId: string, value: string) => {
     setSelectedStatusMap((prevMap) => ({
@@ -156,45 +273,60 @@ const Presence = ({ route, navigation }: { route: any; navigation: any }) => {
       </TouchableOpacity>
     </View>
   );
-
   // Check Attendance
 
   const [commentMap, setCommentMap] = useState<Record<string, string>>({}); // Map to store comments for each student
-  const checkPresence = () => {
-    const dataToInsert = studentList.map((student) => ({
-      studentId: student.student_id,
-      status: selectedStatusMap[student.student_id] || 'P', // Default to 'P' if not set
-      comment: commentMap[student.student_id] || '',
-    }));
-    let insert = true;
-    // Insert data into the table_presence
-    db.transaction((tx) => {
-      dataToInsert.forEach(({ studentId, status, comment }) => {
-        tx.executeSql(
-          'INSERT INTO table_presence (state, comment, class_id, group_id, session_id, student_id) VALUES (?, ?, ?, ?, ?, ?)',
-          [status, comment, class_id, group_id, session_id, studentId],
-          (tx, results) => {
-            if (results.rowsAffected > 0) {
-              insert=true;
-            } else {
-              console.log(`Failed to insert data for student ${studentId}`);
-              Alert.alert('Error')
-            }
-          }
-        );
+
+  const checkPresence = async () => {
+    try {
+      const dataToInsert = studentList.map((student) => ({
+        studentId: student.student_id,
+        status: selectedStatusMap[student.student_id] || '',
+        comment: commentMap[student.student_id] || '',
+      }));
+
+      const insertPromises = dataToInsert.map(({ studentId, status, comment }) => {
+        return new Promise((resolve, reject) => {
+          db.transaction((tx) => {
+            tx.executeSql(
+              'INSERT INTO table_presence (state, comment, class_id, group_id, session_id, student_id) VALUES (?, ?, ?, ?, ?, ?)',
+              [status, comment, class_id, group_id, session_id, studentId],
+              (tx, results) => {
+                if (results.rowsAffected > 0) {
+                  tx.executeSql(
+                    'UPDATE table_session SET checkAttendance = ? WHERE session_id = ?',
+                    [1, session_id],
+                    (tx, updateResults) => {
+                      if (updateResults.rowsAffected > 0) {
+                        resolve(studentId);
+                      } else {
+                        reject(new Error(`Error updating checkAttendance for student ${studentId}`));
+                      }
+                    }
+                  );
+                } else {
+                  reject(new Error(`Failed to insert data for student ${studentId}`));
+                }
+              }
+            );
+          });
+        });
       });
-    });
-    if (insert) {
-      console.log(`Data inserted successfully for student`);
-      Alert.alert('Data inserted successfully for student')
-    } else {
-      console.log(`Failed to insert data for student `);
-      Alert.alert('Error')
+
+      const successfulStudents = await Promise.all(insertPromises);
+
+      // Assuming fetchSession involves updating state
+      await fetchSession(); // Wait for fetchSession to complete before continuing
+      await fetchAttendanceData();
+
+      console.log(`Data inserted successfully for students: ${successfulStudents.join(', ')}`);
+      Alert.alert('Data inserted successfully for students');
+    } catch (error) {
+      console.error(error);
+      console.log(`Failed to insert data for students`);
+      Alert.alert('Error');
     }
   };
-
-
-
 
   // fetch all data student from sqlite db
   interface StudentItem {
@@ -221,9 +353,40 @@ const Presence = ({ route, navigation }: { route: any; navigation: any }) => {
       );
     });
   }
+  // fetch all data Session from sqlite db
+
+  const [checkAttendance, setCheckAttendance] = useState(false);
+
+  const fetchSession = () => {
+    db.transaction((tx) => {
+      tx.executeSql(
+        'SELECT checkAttendance FROM table_session WHERE session_id=?',
+        [session_id],
+        (tx, results) => {
+          if (results.rows.length > 0) {
+            const attendanceValue = results.rows.item(0).checkAttendance;
+            setCheckAttendance(attendanceValue);
+          }
+        }
+      );
+    });
+  };
+
+
   useEffect(() => {
-    fetchStusent();
-  }, []);
+    const fetchData = async () => {
+      await fetchSession();
+      if (checkAttendance) {
+        fetchPresence();
+      } else {
+        fetchStusent();
+      }
+    };
+
+    fetchData();
+  }, [checkAttendance]);
+
+
   return (
     <SafeAreaView style={{ flex: 1, marginHorizontal: 16, marginTop: 20 }}>
       {/* header  */}
@@ -232,139 +395,93 @@ const Presence = ({ route, navigation }: { route: any; navigation: any }) => {
           name="ios-arrow-back" size={25} color="#05BFDB" style={{ top: 10, marginRight: 15 }}
           onPress={() => navigation.navigate("Group", { class_id: class_id, class_name: class_name, class_speciality: class_speciality, class_level: class_level, })}
         />
-        <Text style={{ flex: 1, fontSize: 25, fontWeight: "700" }}> Check Attendance </Text>
+        <Text style={{ flex: 1, fontSize: 25, fontWeight: "700" }}> {class_name} {group_name} {group_type}</Text>
       </View>
-      {checkAttendance ? (
-        // checkAttendance = true
-        <View>
-          {/* Search Section */}
-          <View style={styles.viewSearch}>
-            <Ionicons name="search-outline" size={24} color={colors.primary} />
-            <TextInput
-              style={{ paddingLeft: 8, fontSize: 16 }}
-              placeholder="Search for Student..."
-            />
-          </View>
-
-          {/* add pie chart  */}
-
-          {/* consult the attendance state per session (P, Ab, JA , C */}
-          <View style={{ marginTop: 22 }}>
-            <Text style={{ fontSize: 22, fontWeight: "bold" }}> Consult Attendance</Text>
-            <View >
-              <FlatList
-                data={studentList}
-                renderItem={renderConsultAttendanc}
-                keyExtractor={(item) => item.student_id.toString()}
+      {
+        checkAttendance ? (
+          // checkAttendance = true
+          <View style={{ flex: 1 }}>
+            {/* Search Section */}
+            <View style={styles.viewSearch}>
+              <Ionicons name="search-outline" size={24} color={colors.primary} />
+              <TextInput
+                style={{ paddingLeft: 8, fontSize: 16 }}
+                placeholder="Search for Student..."
               />
-              {selectedStudent && (
-                <Modal
-                  isVisible={isModalPresenceVisible}
-                  onBackdropPress={() => setModalPresenceVisible(false)}
-                >
-                  <View style={styles.modalContent}>
-                    <Text
-                      style={{
-                        fontSize: 22,
-                        fontWeight: "bold",
-                        marginBottom: 10,
-                      }}
-                    >
-                      {selectedStudent.student_lastName}{" "}
-                      {selectedStudent.student_firstName}
-                    </Text>
-                    <View>
-                      <Text
-                        style={{
-                          marginTop: 5,
-                          marginBottom: 5,
-                          fontWeight: "600",
-                        }}
-                      >
-                        State:
-                      </Text>
-                    </View>
-                    <RadioButton.Group
-                      onValueChange={(value) => setSelectedStatus(value)}
-                      value={selectedStatus}
-                    >
-                      <View style={{ flexDirection: "row" }}>
-                        <RadioButton.Item label="P" value="p" />
-                        <RadioButton.Item label="Ab" value="ab" />
-                        <RadioButton.Item label="JA" value="JA" />
+            </View>
+
+            {/* add pie chart  */}
+            <AttendancePieChart data={attendanceData} />
+
+            {/* consult the attendance state per session (P, Ab, JA , C */}
+            <View style={{ marginTop: 22, flex: 1 }}>
+              <Text style={{ fontSize: 17, fontWeight: "bold" }}> Consult Attendance</Text>
+              <View>
+                <FlatList
+                  data={presenceList}
+                  renderItem={renderConsultAttendanc}
+                  keyExtractor={(item) => item.student_id.toString()}
+                />
+                {selectedStudent && (
+                  // update information 
+                  <Modal
+                    isVisible={isModalPresenceVisible}
+                    onBackdropPress={() => setModalPresenceVisible(false)}>
+                    <View style={styles.modalContent}>
+                      <Text style={{ fontSize: 22, fontWeight: "bold", marginBottom: 10 }}>Edit {selectedStudent?.student_lastName} {selectedStudent?.student_firstName}</Text>
+                      <View>
+                        <Text style={{ marginTop: 5, marginBottom: 5, fontWeight: "600" }}>State:</Text>
                       </View>
-                    </RadioButton.Group>
-                    <View>
-                      <Text
-                        style={{
-                          marginTop: 5,
-                          marginBottom: 5,
-                          fontWeight: "600",
-                        }}
-                      >
-                        Comment:
-                      </Text>
+                      <RadioButton.Group
+                        onValueChange={(value) => setSelectedStatus(value)}
+                        value={selectedStatus}>
+                        <View style={{ flexDirection: "row" }}>
+                          <RadioButton.Item label="P" value="P" />
+                          <RadioButton.Item label="Ab" value="Ab" />
+                          <RadioButton.Item label="JA" value="JA" />
+                        </View>
+                      </RadioButton.Group>
+                      <View>
+                        <Text style={{ marginTop: 5, marginBottom: 5, fontWeight: "600" }}> Comment: </Text>
+                      </View>
+                      <TextInput
+                        style={[styles.modalInput, { width: "100%" }]}
+                        placeholder="Enter comment"
+                        value={comment !== null ? comment : undefined}
+                        onChangeText={(text) => setComment(text)}
+                      />
+                      <View style={{ flexDirection: "row", justifyContent: "space-between", width: 100 }}>
+                        <TouchableOpacity
+                          onPress={handleSavePresence}
+                          style={{ backgroundColor: colors.primary, padding: 10, borderRadius: 5, marginTop: 10, alignItems: "center", margin: 3, left: 16 }}>
+                          <Text style={styles.buttonTexts}>Save</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={toggleModalPresence}
+                          style={{ backgroundColor: colors.primary, padding: 10, borderRadius: 5, marginTop: 10, alignItems: "center", margin: 3, left: 16 }}>
+                          <Text style={styles.buttonTexts}>Close</Text>
+                        </TouchableOpacity>
+                      </View>
                     </View>
-                    <TextInput
-                      style={[styles.modalInput, { width: "100%" }]}
-                      placeholder="Enter comment"
-                    />
-                    <View
-                      style={{
-                        flexDirection: "row",
-                        justifyContent: "space-between",
-                        width: 100,
-                      }}
-                    >
-                      <TouchableOpacity
-                        onPress={handleSavePresence}
-                        style={{
-                          backgroundColor: colors.primary,
-                          padding: 10,
-                          borderRadius: 5,
-                          marginTop: 10,
-                          alignItems: "center",
-                          margin: 3,
-                          left: 16,
-                        }}
-                      >
-                        <Text style={styles.buttonTexts}>Save</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        onPress={toggleModalPresence}
-                        style={{
-                          backgroundColor: colors.primary,
-                          padding: 10,
-                          borderRadius: 5,
-                          marginTop: 10,
-                          alignItems: "center",
-                          margin: 3,
-                          left: 16,
-                        }}
-                      >
-                        <Text style={styles.buttonTexts}>Close</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                </Modal>
-              )}
+                  </Modal>
+
+                )}
+              </View>
             </View>
           </View>
-        </View>
-      ) : (
-        // checkAttendance= false
-        <View style={{ flex: 1, }}>
-          <View style={{ marginTop: 22, flex: 1, }}>
-
-            <FlatList
-              data={[...studentList, { id: 'saveButton' }]}
-              renderItem={renderStudentItem}
-              keyExtractor={(item, index) => ('student_id' in item) ? item.student_id : item.id}
-            />
-
+        ) : (
+          // checkAttendance= false
+          <View style={{ flex: 1, }}>
+            <View style={{ marginTop: 22, flex: 1, }}>
+              <Text style={{ fontSize: 17, fontWeight: "700" }}> Check Attendance </Text>
+              <FlatList
+                data={[...studentList, { id: 'saveButton' }]}
+                renderItem={renderStudentItem}
+                keyExtractor={(item, index) => ('student_id' in item) ? item.student_id : item.id}
+              />
+            </View>
           </View>
-        </View>
-      )}
+        )}
     </SafeAreaView>
   );
 };
