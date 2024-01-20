@@ -116,6 +116,28 @@ const Group = ({ route, navigation }: { route: any, navigation: any }) => {
     });
   }, []);
 
+  // search 
+  const [searchText, setSearchText] = useState('');
+  const searchGroup = () => {
+    db.transaction((tx) => {
+      tx.executeSql(
+        'SELECT * FROM table_group WHERE group_name LIKE ? OR group_type LIKE ? AND class_id=? ORDER BY class_id DESC',
+        [`%${searchText}%`, `%${searchText}%`,class_id],
+        (tx, results) => {
+          var temp = [];
+          for (let i = 0; i < results.rows.length; ++i) {
+            console.log(results.rows.item(i));
+            temp.push(results.rows.item(i));
+          }
+          setGroupList(temp);
+        }
+      );
+    });
+  }
+
+  useEffect(() => {
+    searchGroup();
+  }, [searchText]);
   // fetch all data group from sqlite db
   const fetchGroup = () => {
     db.transaction((tx) => {
@@ -132,6 +154,7 @@ const Group = ({ route, navigation }: { route: any, navigation: any }) => {
         }
       );
     });
+    setSearchText('');
   }
   useEffect(() => {
     fetchGroup();
@@ -395,9 +418,17 @@ const Group = ({ route, navigation }: { route: any, navigation: any }) => {
       </View>
 
       {/* Search bar */}
-      <View style={{ backgroundColor: "#fff", flexDirection: "row", paddingVertical: 16, borderRadius: 10, paddingHorizontal: 16, marginVertical: 16, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 7, }}>
-        <Ionicons name="search-outline" size={24} color="#05BFDB" />
-        <TextInput style={{ paddingLeft: 8, fontSize: 16, }} placeholder='Search...'></TextInput>
+      <View style={{ backgroundColor: "#fff", flexDirection: "row", paddingVertical: 16, borderRadius: 10, paddingHorizontal: 16, marginVertical: 16, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 7 }}>
+        <Ionicons name="search-outline" size={24} color="#05BFDB" onPress={searchGroup} />
+        <TextInput
+          style={{ paddingLeft: 8, fontSize: 16, flex: 1 }}
+          placeholder='Search for Group ...'
+          value={searchText}
+          onChangeText={(text) => setSearchText(text)}
+        />
+        <TouchableOpacity onPress={fetchGroup}>
+          <Ionicons name="close-outline" size={24} color="#05BFDB" />
+        </TouchableOpacity>
       </View>
 
 

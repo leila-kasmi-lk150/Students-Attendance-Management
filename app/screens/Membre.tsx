@@ -59,9 +59,9 @@ const Membre = ({ route, navigation }: { route: any, navigation: any }) => {
     const isValid = await validateEditStudent();
     if (isValid) {
       editStudent();
-    toggleEditModal();
+      toggleEditModal();
     }
-    
+
   };
   // Toggle model for edit student
   const toggleEditModal = () => {
@@ -157,6 +157,31 @@ const Membre = ({ route, navigation }: { route: any, navigation: any }) => {
     })
   }
 
+
+  const [searchText, setSearchText] = useState('');
+  // Search
+  const searchStudent = () => {
+    db.transaction((tx) => {
+      tx.executeSql(
+        'SELECT * FROM table_students WHERE student_firstName LIKE ? OR student_lastName LIKE ? AND group_id=?',
+        [`%${searchText}%`, `%${searchText}%`, group_id],
+        (tx, results) => {
+          var temp = [];
+          for (let i = 0; i < results.rows.length; ++i) {
+            console.log(results.rows.item(i));
+            temp.push(results.rows.item(i));
+          }
+          setStudentList(temp);
+        }
+      );
+    });
+  };
+
+  useEffect(() => {
+    // Call the search function when the search text changes
+    searchStudent();
+  }, [searchText]);
+
   // fetch all data student from sqlite db
   const fetchStusent = () => {
     db.transaction((tx) => {
@@ -173,6 +198,7 @@ const Membre = ({ route, navigation }: { route: any, navigation: any }) => {
         }
       );
     });
+    setSearchText('');
   }
   useEffect(() => {
     fetchStusent();
@@ -319,12 +345,12 @@ const Membre = ({ route, navigation }: { route: any, navigation: any }) => {
   var [editStudentLastName, setEditStudentLastName] = useState('');
   var [editStudentId, setEditStudentId] = useState('');
 
-   // Validation state variables --> edit student
-   const [studentFirstNameErrorEdit, setstudentFirstNameErrorEdit] = useState('');
-   const [studentLastNameErrorEdit, setStudentLastNameErrorEdit] = useState('');
-   const [editStudentError, setEditStudentError] = useState('');
+  // Validation state variables --> edit student
+  const [studentFirstNameErrorEdit, setstudentFirstNameErrorEdit] = useState('');
+  const [studentLastNameErrorEdit, setStudentLastNameErrorEdit] = useState('');
+  const [editStudentError, setEditStudentError] = useState('');
 
-   const validateEditStudent = () => {
+  const validateEditStudent = () => {
     setstudentFirstNameErrorEdit('');
     setStudentLastNameErrorEdit('');
     setEditStudentError('');
@@ -351,9 +377,9 @@ const Membre = ({ route, navigation }: { route: any, navigation: any }) => {
             const studenExist = res.rows.item(0);
             if (
               upperCaseFirstName !== studenExist.student_firstName.toUpperCase() ||
-              upperCaseLastName !== studenExist.student_lastName.toUpperCase()  ||
+              upperCaseLastName !== studenExist.student_lastName.toUpperCase() ||
               editStudentGroup !== group_id ||
-              editStudentGroup === group_id 
+              editStudentGroup === group_id
             ) {
               console.log('defrent information');
               txn.executeSql(
@@ -472,10 +498,18 @@ const Membre = ({ route, navigation }: { route: any, navigation: any }) => {
         <Text style={{ flex: 1, fontSize: 25, fontWeight: '700' }}>{class_name} {group_name} {group_type}</Text>
       </View>
 
-      {/* Search bar */}
-      <View style={{ backgroundColor: "#fff", flexDirection: "row", paddingVertical: 16, borderRadius: 10, paddingHorizontal: 16, marginVertical: 16, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 7, }}>
-        <Ionicons name="search-outline" size={24} color="#05BFDB" />
-        <TextInput style={{ paddingLeft: 8, fontSize: 16, }} placeholder='Search for Student...'></TextInput>
+        {/* Search */}
+      <View style={{ backgroundColor: "#fff", flexDirection: "row", paddingVertical: 16, borderRadius: 10, paddingHorizontal: 16, marginVertical: 16, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 7 }}>
+        <Ionicons name="search-outline" size={24} color="#05BFDB" onPress={searchStudent} />
+        <TextInput
+          style={{ paddingLeft: 8, fontSize: 16, flex: 1 }}
+          placeholder='Search for Student...'
+          value={searchText}
+          onChangeText={(text) => setSearchText(text)}
+        />
+        <TouchableOpacity onPress={fetchStusent}>
+          <Ionicons name="close-outline" size={24} color="#05BFDB" />
+        </TouchableOpacity>
       </View>
 
       {/* Add new student */}
@@ -539,7 +573,6 @@ const Membre = ({ route, navigation }: { route: any, navigation: any }) => {
           </View>
         </View>
       </Modal>
-
       {/* List of Student */}
       <View style={{ marginTop: 22, flex: 1 }}>
 
