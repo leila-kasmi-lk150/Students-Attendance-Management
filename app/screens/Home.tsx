@@ -183,6 +183,7 @@ const Home = ({ navigation }: { navigation: any }) => {
         (tex, res) => {
           if (res.rowsAffected == 1) {
             Alert.alert('Class added successfully!');
+
             console.log('class added');
 
           } else {
@@ -420,6 +421,22 @@ const Home = ({ navigation }: { navigation: any }) => {
     });
   }
   // Fetch the last collegeYear from the table
+  const lastcolleg = () =>{
+    db.transaction((tx) => {
+      tx.executeSql(
+        'SELECT DISTINCT class_collegeYear FROM table_class ORDER BY class_collegeYear DESC LIMIT 1',
+        [],
+        (tx, results) => {
+          if (results.rows.length > 0) {
+            const lastCollegeYear = results.rows.item(0).class_collegeYear;
+            setCollegeYearValue(lastCollegeYear);
+            fetchClassData(lastCollegeYear);
+            setSelectedIndex(lastCollegeYear);
+          }
+        }
+      );
+    });
+  }
   useEffect(() => {
     db.transaction((tx) => {
       tx.executeSql(
@@ -473,7 +490,7 @@ const Home = ({ navigation }: { navigation: any }) => {
       );
     });
   };
-  
+
   const [collegeYearValue, setCollegeYearValue] = useState('');
   useEffect(() => {
     if (collegeYearClassList.length > 0) {
@@ -481,6 +498,30 @@ const Home = ({ navigation }: { navigation: any }) => {
       setCollegeYearValue(latestCollegeYear);
     }
   }, [collegeYearClassList]);
+
+  // Search
+  const searchClass = () => {
+    db.transaction((tx) => {
+      tx.executeSql(
+        'SELECT * FROM table_class WHERE class_name LIKE ? OR class_level LIKE ? OR class_speciality LIKE ? AND class_collegeYear=?',
+        [`%${searchText}%`, `%${searchText}%`, `%${searchText}%`, collegeYearValue],
+        (tx, results) => {
+          var temp = [];
+          for (let i = 0; i < results.rows.length; ++i) {
+            console.log(results.rows.item(i));
+            temp.push(results.rows.item(i));
+          }
+          setcollegeYearClassList(temp);
+        }
+      );
+    });
+  };
+
+  const [searchText, setSearchText] = useState('');
+  useEffect(() => {
+    // Call the search function when the search text changes
+    searchClass();
+  }, [searchText]);
   // Start
   return (
     <SafeAreaView style={styles.SafeAreaViewStyle}>
@@ -491,9 +532,17 @@ const Home = ({ navigation }: { navigation: any }) => {
       </View>
 
       {/* Search bar */}
-      <View style={styles.viewSearch}>
-        <Ionicons name="search-outline" size={24} color={colors.primary} />
-        <TextInput style={{ paddingLeft: 8, fontSize: 16, }} placeholder='Search for Class...' />
+      <View style={{ backgroundColor: "#fff", flexDirection: "row", paddingVertical: 16, borderRadius: 10, paddingHorizontal: 16, marginVertical: 16, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 7 }}>
+        <Ionicons name="search-outline" size={24} color="#05BFDB" />
+        <TextInput
+          style={{ paddingLeft: 8, fontSize: 16, flex: 1 }}
+          placeholder='Search for Student...'
+          value={searchText}
+          onChangeText={(text) => setSearchText(text)}
+        />
+        <TouchableOpacity onPress={() => { fetchLastCollegeYear(); lastcolleg(); }}>
+          <Ionicons name="close-outline" size={24} color="#05BFDB" />
+        </TouchableOpacity>
       </View>
 
 

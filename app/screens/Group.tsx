@@ -500,8 +500,7 @@ const Group = ({ route, navigation }: { route: any, navigation: any }) => {
           <FlatList data={groupList} renderItem={({ item }) =>
             <View style={{ backgroundColor: colors.light, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 7, borderRadius: 16, marginVertical: 16, alignItems: 'center', }}>
               <TouchableOpacity
-                onPress={() => navigation.navigate('NavigateMember',
-                  { group_id: item.group_id, group_name: item.group_name, group_type: item.group_type, class_id: class_id, class_name: class_name, class_speciality: class_speciality, class_level: class_level })}
+                onPress={() => navigation.navigate('NavigateMember',{ group_id: item.group_id, group_name: item.group_name, group_type: item.group_type, class_id: class_id, class_name: class_name, class_speciality: class_speciality, class_level: class_level })}
 
                 style={{ flexDirection: 'row', paddingLeft: 20, paddingRight: 20, paddingTop: 30, paddingBottom: 30 }}
               >

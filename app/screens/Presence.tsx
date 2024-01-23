@@ -8,8 +8,6 @@ import { colors } from "../component/Constant";
 import { ScreenWidth } from "react-native-elements/dist/helpers";
 import Modal from "react-native-modal";
 import * as Sqlite from 'expo-sqlite';
-import { PieChart } from 'react-native-chart-kit';
-// import AttendancePieChart from "./AttendancePieChart";
 const Presence = ({ route, navigation }: { route: any; navigation: any }) => {
   let db = Sqlite.openDatabase('Leiknach.db');
   const screenWidth = Dimensions.get("window").width;
@@ -21,74 +19,6 @@ const Presence = ({ route, navigation }: { route: any; navigation: any }) => {
   const { group_name } = route.params;
   const { group_type } = route.params;
   const { session_id } = route.params;
-
-
-  const chartConfig = {
-    backgroundGradientFrom: '#1E2923',
-    backgroundGradientFromOpacity: 0,
-    backgroundGradientTo: '#08130D',
-    backgroundGradientToOpacity: 0.5,
-    color: (opacity = 1) => `rgba(26, 255, 146, ${opacity})`,
-  };
-
-
-  const getColorForState = (state: string): string => {
-    switch (state) {
-      case 'P':
-        return '#2ecc71'; // Green for Present
-      case 'Ab':
-        return '#e74c3c'; // Red for Absent
-      case 'JA':
-        return '#f39c12'; // Orange for Justified Absence
-      default:
-        return '#000000'; // Default to black for unknown states
-    }
-  };
-  const [attendanceData, setAttendanceData] = useState<{ name: string; value: number; color: string }[]>([]);
-
-  // Fetch and process attendance data for the selected session
-  const fetchAttendanceData = () => {
-    db.transaction((tx) => {
-      tx.executeSql(
-        'SELECT state, COUNT(*) as count FROM table_presence WHERE session_id=? GROUP BY state',
-        [session_id],
-        (tx, results) => {
-          const data = results.rows._array as { state: string; count: number }[];
-          const processedData = data.map((item) => ({
-            name: item.state,
-            value: item.count,
-            color: getColorForState(item.state),
-          }));
-          setAttendanceData(processedData);
-        }
-      );
-    });
-  };
-
-  // Fetch attendance data when the component mounts
-  useEffect(() => {
-    fetchAttendanceData();
-  }, [session_id]);
-
-  const AttendancePieChart = ({ data }: { data: { name: string; value: number; color: string }[] }) => {
-    // ... (AttendancePieChart component code)
-
-    return (
-      <>
-        <Text style={{ fontSize: 17, fontWeight: "bold" }}>Pie Chart for Attendance States</Text>
-        <PieChart
-          data={data}
-          width={300}
-          height={200}
-          chartConfig={chartConfig}
-          accessor="value"
-          backgroundColor="transparent"
-          paddingLeft="15"
-        />
-      </>
-    );
-  };
-
   // Database functions
   useEffect(() => {
     db.transaction((txn) => {
@@ -144,7 +74,6 @@ const Presence = ({ route, navigation }: { route: any; navigation: any }) => {
         );
       });
 
-      fetchAttendanceData();
       // Close the modal
       toggleModalPresence();
 
@@ -206,7 +135,7 @@ const Presence = ({ route, navigation }: { route: any; navigation: any }) => {
     db.transaction((tx) => {
       tx.executeSql(
         'SELECT TS.student_id, TS.student_firstName, TS.student_lastName, TP.comment, TP.state, TP.class_id, TP.group_id FROM table_students TS LEFT JOIN table_presence TP ON TS.student_id = TP.student_id AND TP.session_id = ? WHERE TS.student_firstName LIKE ? OR TS.student_lastName LIKE ? AND TP.session_id=?',
-        [session_id,`%${searchText}%`, `%${searchText}%`, session_id],
+        [session_id, `%${searchText}%`, `%${searchText}%`, session_id],
         (tx, results) => {
           var temp = [];
           for (let i = 0; i < results.rows.length; ++i) {
@@ -244,6 +173,7 @@ const Presence = ({ route, navigation }: { route: any; navigation: any }) => {
   };
   // For Flatlist of check Attendance
   const [selectedStatusMap, setSelectedStatusMap] = useState<Record<string, string>>({}); // Map to store selectedStatus for each student
+  
   const handleRadioButtonChange = (studentId: string, value: string) => {
     setSelectedStatusMap((prevMap) => ({
       ...prevMap,
@@ -267,7 +197,8 @@ const Presence = ({ route, navigation }: { route: any; navigation: any }) => {
             <Text style={{ fontWeight: 'bold', color: 'black' }}>{item.student_lastName} {item.student_firstName}</Text>
             <RadioButton.Group
               onValueChange={(value) => handleRadioButtonChange(item.student_id, value)}
-              value={selectedStatusMap[item.student_id]}
+              // value={selectedStatusMap[item.student_id]}
+              value={selectedStatusMap[item.student_id] || 'P'}
             >
               <View style={{ flexDirection: 'row' }}>
                 <RadioButton.Item label="P" value="P" />
@@ -305,7 +236,7 @@ const Presence = ({ route, navigation }: { route: any; navigation: any }) => {
     try {
       const dataToInsert = studentList.map((student) => ({
         studentId: student.student_id,
-        status: selectedStatusMap[student.student_id] || '',
+        status: selectedStatusMap[student.student_id] || 'P',
         comment: commentMap[student.student_id] || '',
       }));
 
@@ -341,7 +272,6 @@ const Presence = ({ route, navigation }: { route: any; navigation: any }) => {
 
       // Assuming fetchSession involves updating state
       await fetchSession(); // Wait for fetchSession to complete before continuing
-      await fetchAttendanceData();
 
       console.log(`Data inserted successfully for students: ${successfulStudents.join(', ')}`);
       Alert.alert('Data inserted successfully for students');
@@ -413,18 +343,23 @@ const Presence = ({ route, navigation }: { route: any; navigation: any }) => {
 
   return (
     <SafeAreaView style={{ flex: 1, marginHorizontal: 16, marginTop: 20 }}>
-      {/* header  */}
-      <View style={{ flexDirection: "row" }}>
-        <Ionicons
-          name="ios-arrow-back" size={25} color="#05BFDB" style={{ top: 10, marginRight: 15 }}
-          onPress={() => navigation.navigate("Group", { class_id: class_id, class_name: class_name, class_speciality: class_speciality, class_level: class_level, })}
-        />
-        <Text style={{ flex: 1, fontSize: 25, fontWeight: "700" }}> {class_name} {group_name} {group_type}</Text>
-      </View>
+
       {
         checkAttendance ? (
           // checkAttendance = true
+
           <View style={{ flex: 1 }}>
+            {/* header  */}
+            <View style={{ flexDirection: "row" }}>
+              <Ionicons
+                name="ios-arrow-back" size={25} color="#05BFDB" style={{ top: 10, marginRight: 15 }}
+                onPress={() => navigation.navigate('SessionScreens', { group_id: group_id, group_name: group_name, group_type: group_type, class_id: class_id, class_name: class_name, class_speciality: class_speciality, class_level: class_level })}
+              />
+              <Text style={{ flex: 1, fontSize: 25, fontWeight: "700" }}> {class_name} {group_name} {group_type}</Text>
+              <Ionicons name="ios-settings-outline" size={25} color={colors.primary} style={{ top: 15 }}
+                onPress={() => navigation.navigate('AttendancePieChartScreens', { session_id: session_id, group_id: group_id, group_name: group_name, group_type: group_type, class_id: class_id, class_name: class_name, class_speciality: class_speciality, class_level: class_level })}
+              />
+            </View>
             {/* Search Section */}
             <View style={{ backgroundColor: "#fff", flexDirection: "row", paddingVertical: 16, borderRadius: 10, paddingHorizontal: 16, marginVertical: 16, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 7 }}>
               <Ionicons name="search-outline" size={24} color="#05BFDB" onPress={searchStudent} />
@@ -439,8 +374,7 @@ const Presence = ({ route, navigation }: { route: any; navigation: any }) => {
               </TouchableOpacity>
             </View>
 
-            {/* add pie chart  */}
-            <AttendancePieChart data={attendanceData} />
+
 
             {/* consult the attendance state per session (P, Ab, JA , C */}
             <View style={{ marginTop: 22, flex: 1 }}>
@@ -501,6 +435,14 @@ const Presence = ({ route, navigation }: { route: any; navigation: any }) => {
         ) : (
           // checkAttendance= false
           <View style={{ flex: 1, }}>
+            {/* header  */}
+            <View style={{ flexDirection: "row" }}>
+              <Ionicons
+                name="ios-arrow-back" size={25} color="#05BFDB" style={{ top: 10, marginRight: 15 }}
+                onPress={() => navigation.navigate('SessionScreens', { group_id: group_id, group_name: group_name, group_type: group_type, class_id: class_id, class_name: class_name, class_speciality: class_speciality, class_level: class_level })}
+              />
+              <Text style={{ flex: 1, fontSize: 25, fontWeight: "700" }}> {class_name} {group_name} {group_type}</Text>
+            </View>
             <View style={{ marginTop: 22, flex: 1, }}>
               <Text style={{ fontSize: 17, fontWeight: "700" }}> Check Attendance </Text>
               <FlatList
