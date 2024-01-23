@@ -6,6 +6,7 @@ import Session from './Session';
 import Presence from './Presence';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
+import AttendancePieChart from './AttendancePieChart';
 
 // This stack for all screens of Member
 const MemberStack = createNativeStackNavigator();
@@ -21,6 +22,7 @@ const SessionScreens = ({ route }: { route: any }) => (
   <SessionStack.Navigator>
     <SessionStack.Screen name='SessionScreens' component={Session} initialParams={route.params}  options={{ headerShown: false }} />
     <SessionStack.Screen name='PresenceScreens' component={Presence} initialParams={route.params}  options={{ headerShown: false }} />
+    <SessionStack.Screen name='AttendancePieChartScreens' component={AttendancePieChart} initialParams={route.params}  options={{ headerShown: false }} />
   </SessionStack.Navigator>
 );
 
