@@ -11,6 +11,14 @@ import * as Sqlite from 'expo-sqlite';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import moment from 'moment';
+import * as RNFS from 'react-native-fs';
+import * as XLSX from 'xlsx';
+import * as Permissions from 'expo-permissions';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
+
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 const Session = ({ route, navigation }: { route: any, navigation: any }) => {
   let db = Sqlite.openDatabase('Leiknach.db');
   const screenWidth = Dimensions.get('window').width;
@@ -46,6 +54,197 @@ const Session = ({ route, navigation }: { route: any, navigation: any }) => {
     toggleEditModal();
   };
 
+  // Constants for dateTimePicker export file excel: From
+  const [selectedDateFromExport, setSelectedDateFromExport] = useState(new Date());
+  const [showDatePickerFromExport, setShowDatePickerFromExport] = useState(false);
+
+  const handleDateChangeFromExport = (event: DateTimePickerEvent, selectedDate?: Date) => {
+    if (selectedDate) {
+      setShowDatePickerFromExport(false);
+      const timestamp = event.nativeEvent.timestamp;
+      const newDate = timestamp ? new Date(timestamp) : new Date();
+      setSelectedDateFromExport(newDate);
+    }
+  };
+
+  const formattedDateFromExport = moment(selectedDateFromExport).format('YYYY-MM-DD');
+
+  // Constants for dateTimePicker export file excel: TO
+  const [selectedDateTOExport, setSelectedDateTOExport] = useState(new Date());
+  const [showDatePickerTOExport, setShowDatePickerTOExport] = useState(false);
+
+  const handleDateChangeTOExport = (event: DateTimePickerEvent, selectedDate?: Date) => {
+    if (selectedDate) {
+      setShowDatePickerTOExport(false);
+      const timestamp = event.nativeEvent.timestamp;
+      const newDate = timestamp ? new Date(timestamp) : new Date();
+      setSelectedDateTOExport(newDate);
+    }
+  };
+
+  const formattedDateTOExport = moment(selectedDateTOExport).format('YYYY-MM-DD');
+  // ================================
+
+
+  const generateExcel = async () => {
+    console.log('============================');
+
+    // Get selected dates and group ID
+    const selectedDateFromExport = formattedDateFromExport;
+    const selectedDateTOExport = formattedDateTOExport;
+    var worksheet;
+
+
+    db.transaction((transaction) => {
+      // 1. Fetch class information
+      transaction.executeSql(
+        `SELECT class_name, class_speciality, class_level, class_collegeYear FROM table_class WHERE class_id = (SELECT class_id FROM table_group WHERE group_id = ?)`,
+        [group_id],
+        (_, classData) => {
+          const classRows: Array<{
+            class_name: string;
+            class_speciality: string;
+            class_level: string;
+            class_collegeYear: string;
+          }> = [];
+
+          for (let i = 0; i < classData.rows.length; i++) {
+            classRows.push(classData.rows.item(i));
+          }
+
+          const [classRow] = classRows;
+
+          // 2. Fetch group information
+          transaction.executeSql(
+            `SELECT group_name, group_type FROM table_group WHERE group_id = ?`,
+            [group_id],
+            (_, groupData) => {
+              const groupRows: Array<{
+                group_name: string;
+                group_type: string;
+              }> = [];
+
+              for (let i = 0; i < groupData.rows.length; i++) {
+                groupRows.push(groupData.rows.item(i));
+              }
+
+              const [groupRow] = groupRows;
+
+              // 3. Fetch student and session data
+              transaction.executeSql(
+                `
+                  SELECT
+                    s.student_id,
+                    s.student_firstName,
+                    s.student_lastName,
+                    p.state,
+                    strftime('%d/%m/%Y %H:%M', se.session_date || ' ' || se.session_time) AS session_datetime
+                  FROM table_students s
+                  JOIN table_presence p ON s.student_id = p.student_id
+                  JOIN table_session se ON p.session_id = se.session_id
+                  WHERE s.group_id = ?
+                  AND datetime(se.session_date || ' ' || se.session_time) BETWEEN datetime(?) AND datetime(?)
+                  ORDER BY s.student_lastName, session_datetime
+                `,
+                [group_id, selectedDateFromExport, selectedDateTOExport],
+                (_, studentSessionData) => {
+                  const studentRows: Array<{
+                    student_id: number;
+                    student_firstName: string;
+                    student_lastName: string;
+                    state: string;
+                    session_datetime: string;
+                  }> = [];
+
+                  for (let i = 0; i < studentSessionData.rows.length; i++) {
+                    studentRows.push(studentSessionData.rows.item(i));
+                  }
+
+                  const sessionsData: Array<{ session_datetime: string }> = Array.from(
+                    new Set(studentRows.map((row) => row.session_datetime))
+                  ).map((datetime) => {
+                    return {
+                      session_datetime: datetime,
+                    };
+                  });
+
+                  const headerRow: Array<string | number> = [
+                    'Last Name',
+                    'First Name',
+                    ...sessionsData.map((session) => session.session_datetime),
+                  ];
+
+                  interface DataRow {
+                    student_id: number | string;
+                    last_name: string;
+                    first_name: string;
+                    [key: string]: string | number; // Allow any string or number key
+                  }
+
+                  const dataRows: DataRow[] = studentRows.reduce((acc: DataRow[], row) => {
+                    const existingRow = acc.find((r) => r.student_id === row.student_id);
+                  
+                    if (existingRow) {
+                      existingRow[row.session_datetime] = row.state;
+                    } else {
+                      const newRow: DataRow = {
+                        student_id: row.student_id,
+                        last_name: row.student_lastName,
+                        first_name: row.student_firstName,
+                        [row.session_datetime]: row.state,
+                      };
+                      acc.push(newRow);
+                    }
+                  
+                    return acc;
+                  }, []);
+
+                  const worksheet: Array<Array<string | number>> = [
+                    // Class information
+                    [
+                      classRow.class_name,
+                      classRow.class_speciality,
+                      classRow.class_level,
+                      classRow.class_collegeYear,
+                    ],
+                    // Group information
+                    [groupRow.group_name, groupRow.group_type],
+                    // Header row with student and session dates
+                    headerRow,
+                    ...dataRows.map((row) => {
+                      return [row.last_name, row.first_name, ...Object.values(row).slice(3)];
+                    }),
+                  ];
+
+                  let wb = XLSX.utils.book_new();
+                  let ws = XLSX.utils.aoa_to_sheet(worksheet);
+                  XLSX.utils.book_append_sheet(wb, ws, 'attendance', true);
+                  const base64 = XLSX.write(wb, { type: 'base64' });
+                  const filename = FileSystem.documentDirectory + 'attendance.xlsx';
+                  FileSystem.writeAsStringAsync(filename, base64, {
+                    encoding: FileSystem.EncodingType.Base64,
+                  }).then(() => {
+                    Sharing.shareAsync(filename);
+                  });
+                }
+              );
+            }
+          );
+        }
+      );
+    });
+
+
+
+
+
+
+
+  };
+
+
+
+
   // const for my dateTimePicker of add new session
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -67,6 +266,8 @@ const Session = ({ route, navigation }: { route: any, navigation: any }) => {
       setSelectedTime(truncatedTime);
     }
   };
+
+
   // =====================
   interface SessionItem {
     session_id: string;
@@ -74,7 +275,7 @@ const Session = ({ route, navigation }: { route: any, navigation: any }) => {
     session_time: string;
     class_id: number;
     group_id: number;
-    checkAttendance:boolean;
+    checkAttendance: boolean;
   }
   const [sessionList, setSessionList] = useState<SessionItem[]>([]);
 
@@ -286,35 +487,54 @@ const Session = ({ route, navigation }: { route: any, navigation: any }) => {
       {/* Export  */}
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', margin: 10, }}>
         <View style={{ backgroundColor: "#fff", borderRadius: 10, width: (screenWidth * 0.3), padding: 15, marginVertical: 25, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 7, }}>
-          <View>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+          <TouchableOpacity onPress={() => setShowDatePickerFromExport(true)}>
+            <Text style={{ flexDirection: 'row', justifyContent: 'space-between' }} >
               <Text style={{ color: colors.gray, fontWeight: 'bold', fontSize: 14 }}>
                 <Ionicons name="calendar" size={14} color="#05BFDB" />
                 <Text> From </Text>
               </Text>
-            </View>
-            <Text style={{ color: colors.gray, fontSize: 10 }}> 01/01/2024</Text>
-          </View>
+            </Text>
+            <Text style={{ color: colors.gray, fontSize: 10 }}> {formattedDateFromExport}</Text>
+          </TouchableOpacity>
         </View>
+        {showDatePickerFromExport && (
+          <DateTimePicker
+            value={selectedDateFromExport}
+            mode="date"
+            is24Hour={true}
+            display="default"
+            onChange={handleDateChangeFromExport}
+          />
+        )}
         <View style={{
           backgroundColor: "#fff",
           borderRadius: 10, width: (screenWidth * 0.3), padding: 15, marginVertical: 25, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 7,
         }}>
-          <View>
+          <TouchableOpacity onPress={() => setShowDatePickerTOExport(true)}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
               <Text style={{ color: colors.gray, fontWeight: 'bold', fontSize: 14 }}>
                 <Ionicons name="calendar" size={14} color="#05BFDB" />
                 <Text> To </Text>
               </Text>
             </View>
-            <Text style={{ color: colors.gray, fontSize: 10 }}> 06/09/2024</Text>
-          </View>
+            <Text style={{ color: colors.gray, fontSize: 10 }}> {formattedDateTOExport}</Text>
+          </TouchableOpacity>
         </View>
-        <View style={{ backgroundColor: "#fff", borderRadius: 10, marginVertical: 25, padding: 15, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 7, width: screenWidth * 0.2, alignItems: 'center', justifyContent: 'center', }}>
-          <View style={{ alignItems: 'center', justifyContent: 'center', }}>
+        {showDatePickerTOExport && (
+          <DateTimePicker
+            value={selectedDateTOExport}
+            mode="date"
+            is24Hour={true}
+            display="default"
+            onChange={handleDateChangeTOExport}
+          />
+        )}
+
+        <View style={{ backgroundColor: "#fff", borderRadius: 10, marginVertical: 25, padding: 15, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 7, width: screenWidth * 0.2, alignItems: 'center', justifyContent: 'center' }}>
+          <TouchableOpacity style={{ alignItems: 'center', justifyContent: 'center' }} onPress={generateExcel}>
             <Ionicons name='download' size={20} color="#05BFDB" />
             <View><Text style={{ color: colors.gray, fontWeight: 'bold', fontSize: 10 }}>Export</Text></View>
-          </View>
+          </TouchableOpacity>
         </View>
       </View>
 
