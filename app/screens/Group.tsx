@@ -100,7 +100,6 @@ const Group = ({ route, navigation }: { route: any, navigation: any }) => {
         "SELECT name FROM sqlite_master WHERE type='table' AND name='table_group'",
         [],
         (tx, res) => {
-          console.log('item:', res.rows.length);
           if (res.rows.length === 0) {
             txn.executeSql('DROP TABLE IF EXISTS table_group', []);
             txn.executeSql(
@@ -122,11 +121,10 @@ const Group = ({ route, navigation }: { route: any, navigation: any }) => {
     db.transaction((tx) => {
       tx.executeSql(
         'SELECT * FROM table_group WHERE group_name LIKE ? OR group_type LIKE ? AND class_id=? ORDER BY class_id DESC',
-        [`%${searchText}%`, `%${searchText}%`,class_id],
+        [`%${searchText}%`, `%${searchText}%`, class_id],
         (tx, results) => {
           var temp = [];
           for (let i = 0; i < results.rows.length; ++i) {
-            console.log(results.rows.item(i));
             temp.push(results.rows.item(i));
           }
           setGroupList(temp);
@@ -137,6 +135,9 @@ const Group = ({ route, navigation }: { route: any, navigation: any }) => {
 
   useEffect(() => {
     searchGroup();
+    if (searchText.length == 0) {
+      fetchGroup();
+    }
   }, [searchText]);
   // fetch all data group from sqlite db
   const fetchGroup = () => {
@@ -147,7 +148,6 @@ const Group = ({ route, navigation }: { route: any, navigation: any }) => {
         (tx, results) => {
           var temp = [];
           for (let i = 0; i < results.rows.length; ++i) {
-            console.log(results.rows.item(i));
             temp.push(results.rows.item(i));
           }
           setGroupList(temp);
@@ -184,7 +184,7 @@ const Group = ({ route, navigation }: { route: any, navigation: any }) => {
         isValid = false;
       }
 
-      const upperCaseNameGroup = nameGroup.toUpperCase();
+      const upperCaseNameGroup = nameGroup.trim().toUpperCase();
 
       db.transaction((txn) => {
         let groupTypeQuery = null;
@@ -199,7 +199,7 @@ const Group = ({ route, navigation }: { route: any, navigation: any }) => {
 
         if (groupTypeQuery == 'TP and TD') {
           txn.executeSql(
-            "SELECT * FROM table_group WHERE UPPER(group_name) = ? AND class_id=? ",
+            "SELECT * FROM table_group WHERE UPPER(TRIM(group_name)) = ? AND class_id=? ",
             [upperCaseNameGroup, class_id],
             (tx, res) => {
               if (res.rows.length > 0) {
@@ -212,7 +212,7 @@ const Group = ({ route, navigation }: { route: any, navigation: any }) => {
           );
         } else {
           txn.executeSql(
-            "SELECT * FROM table_group WHERE UPPER(group_name) = ? AND group_type = ? AND class_id=?",
+            "SELECT * FROM table_group WHERE UPPER(TRIM(group_name)) = ? AND group_type = ? AND class_id=?",
             [upperCaseNameGroup, groupTypeQuery, class_id],
             (tx, res) => {
               if (res.rows.length > 0) {
@@ -244,11 +244,8 @@ const Group = ({ route, navigation }: { route: any, navigation: any }) => {
   const handleTransactionResponse = (_: any, res: any) => {
     if (res.rowsAffected === 1) {
       Alert.alert('Group added successfully!');
-      console.log('Group added successfully!');
     } else {
       Alert.alert('Error adding group');
-      console.log('Error adding group');
-      console.log(res);
     }
 
     fetchGroup();
@@ -261,7 +258,7 @@ const Group = ({ route, navigation }: { route: any, navigation: any }) => {
     deleteGroup();
   }
 
-  const deleteGroup = () => {
+  const deleteGroup = async () => {
     Alert.alert(
       'Confirm Deletion',
       'Do you really want to delete this group?',
@@ -274,30 +271,37 @@ const Group = ({ route, navigation }: { route: any, navigation: any }) => {
           text: 'Delete',
           onPress: async () => {
             try {
-              await db.transaction((txn) => {
-                txn.executeSql(
-                  'DELETE FROM table_group WHERE group_id=?',
-                  [deleteGroupId],
-                  (tx, res) => {
-                    if (res.rowsAffected === 1) {
-                      Alert.alert('Group deleted successfully!');
-                    } else {
-                      Alert.alert('Error deleting group');
+              await db.transaction(async (txn) => {
+                const deleteGroupQuery = 'DELETE FROM table_group WHERE group_id=?';
+                const deleteRelatedQueries = [
+                  'DELETE FROM table_students WHERE group_id=?',
+                  'DELETE FROM table_session WHERE group_id=?',
+                  'DELETE FROM table_presence WHERE group_id=?',
+                ];
+  
+                txn.executeSql(deleteGroupQuery, [deleteGroupId], (tx, res) => {
+                  if (res.rowsAffected === 1) {
+                    for (const query of deleteRelatedQueries) {
+                      txn.executeSql(query, [deleteGroupId]);
                     }
+                    Alert.alert('Group deleted successfully!');
+                  } else {
+                    Alert.alert('Error deleting group');
                   }
-                );
+                });
               });
               fetchGroup();
-
+  
             } catch (error) {
               console.error('Error deleting group:', error);
-              Alert.alert('Error deleting group');
+              Alert.alert('Error deleting group. Please try again.');
             }
           },
         },
       ]
     );
   };
+  
 
   // Edit group to 
 
@@ -316,42 +320,38 @@ const Group = ({ route, navigation }: { route: any, navigation: any }) => {
 
       if (!editGroupName.trim()) {
         setGroupNameErrorEdit('Name group is required');
-        isValid = false;
-      }
-      if (isEditTdChecked == false && isEditTpChecked == false) {
-        setTypeErrorEdit('Type is required');
-        isValid = false;
+        return resolve(false);
       }
 
-      const upperCaseNameGroup = editGroupName.toUpperCase();
+      if (!isEditTdChecked && !isEditTpChecked) {
+        setTypeErrorEdit('Type is required');
+        return resolve(false);
+      }
+
+      const upperCaseNameGroup = editGroupName.trim().toUpperCase();
 
       db.transaction((txn) => {
-        let groupTypeQuery: string | null = null;
-        if (isEditTdChecked && !isEditTpChecked) {
-          groupTypeQuery = 'TD';
-        } else if (!isEditTdChecked && isEditTpChecked) {
-          groupTypeQuery = 'TP';
-        }
 
-        if (groupTypeQuery !== null) {
+
+        if (isEditTdChecked || isEditTpChecked) {
+          const groupTypeQuery = isEditTdChecked ? 'TD' : 'TP';
           txn.executeSql(
-            "SELECT * FROM table_group WHERE group_id = ? AND class_id=?",
-            [editGroupId,class_id],
+            "SELECT * FROM table_group WHERE group_id = ? AND class_id = ?",
+            [editGroupId, class_id],
             (tx, res) => {
-              const GroupExist = res.rows.item(0);
-              if (
-                upperCaseNameGroup !== GroupExist.group_name.toUpperCase()
-              ) {
+              const groupExist = res.rows.item(0);
+
+              if (upperCaseNameGroup !== groupExist.group_name.trim().toUpperCase()) {
+
+
                 txn.executeSql(
-                  "SELECT * FROM table_group WHERE UPPER(group_name) = ? AND group_type = ? AND class_id=?",
-                  [upperCaseNameGroup, groupTypeQuery,class_id],
+                  "SELECT * FROM table_group WHERE UPPER(TRIM(group_name)) = ? AND group_type = ? AND class_id = ?",
+                  [upperCaseNameGroup, groupTypeQuery, class_id],
                   (tx, res) => {
                     if (res.rows.length > 0) {
-                      const GroupExist = res.rows.item(0);
-                      console.log(GroupExist.group_name);
+                      const groupExist = res.rows.item(0);
                       setEditGroupError('This group already exists.');
                       isValid = false;
-                      console.log('This group already exists.');
                     }
                     resolve(isValid);
                   }
@@ -365,9 +365,9 @@ const Group = ({ route, navigation }: { route: any, navigation: any }) => {
           resolve(isValid);
         }
       });
-
     });
   };
+
   var [editGroupName, setEditGroupName] = useState('');
   var [editGroupId, setEditGroupId] = useState('');
 
@@ -400,11 +400,8 @@ const Group = ({ route, navigation }: { route: any, navigation: any }) => {
   const handleTransactionResponseUpdate = (_: any, res: any) => {
     if (res.rowsAffected === 1) {
       Alert.alert('Group Updated successfully!');
-      console.log('Group updated successfully!');
     } else {
       Alert.alert('Error updating group');
-      console.log('Error updating group');
-      console.log(res);
     }
     fetchGroup();
   };
@@ -500,7 +497,7 @@ const Group = ({ route, navigation }: { route: any, navigation: any }) => {
           <FlatList data={groupList} renderItem={({ item }) =>
             <View style={{ backgroundColor: colors.light, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 7, borderRadius: 16, marginVertical: 16, alignItems: 'center', }}>
               <TouchableOpacity
-                onPress={() => navigation.navigate('NavigateMember',{ group_id: item.group_id, group_name: item.group_name, group_type: item.group_type, class_id: class_id, class_name: class_name, class_speciality: class_speciality, class_level: class_level })}
+                onPress={() => navigation.navigate('NavigateMember', { group_id: item.group_id, group_name: item.group_name, group_type: item.group_type, class_id: class_id, class_name: class_name, class_speciality: class_speciality, class_level: class_level })}
 
                 style={{ flexDirection: 'row', paddingLeft: 20, paddingRight: 20, paddingTop: 30, paddingBottom: 30 }}
               >

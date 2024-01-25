@@ -96,7 +96,6 @@ const Home = ({ navigation }: { navigation: any }) => {
         "SELECT name FROM sqlite_master WHERE type='table' AND name='table_class'",
         [],
         (tx, res) => {
-          console.log('item:', res.rows.length);
           if (res.rows.length == 0) {
             txn.executeSql('DROP TABLE IF EXISTS table_class', []);
             txn.executeSql(
@@ -145,25 +144,24 @@ const Home = ({ navigation }: { navigation: any }) => {
       } else {
         const [startYear, endYear] = collegeYearValue.split('-').map(Number);
         if (endYear !== startYear + 1) {
-          setCollegeYearError('The second part of the academic year must be the next year.');
+          setCollegeYearError('Wrong academic year !.');
           isValid = false;
         }
       }
 
-      const upperCaseNameClass = nameClass.toUpperCase();
-      const upperCaseSpeciality = speciality.toUpperCase();
-      const upperCaseLevel = level.toUpperCase();
-      const upperCaseCollegeYearValue = collegeYearValue.toUpperCase();
+      const upperCaseNameClass = nameClass.trim().toUpperCase();
+      const upperCaseSpeciality = speciality.trim().toUpperCase();
+      const upperCaseLevel = level.trim().toUpperCase();
+      const upperCaseCollegeYearValue = collegeYearValue.trim().toUpperCase();
 
       db.transaction((txn) => {
         txn.executeSql(
-          "SELECT * FROM table_class WHERE UPPER(class_name)=? AND UPPER(class_speciality)=? AND UPPER(class_level)=? AND UPPER(class_collegeYear)=?",
+          "SELECT * FROM table_class WHERE UPPER(TRIM(class_name))=? AND UPPER(TRIM(class_speciality))=? AND UPPER(TRIM(class_level))=? AND UPPER(TRIM(class_collegeYear))=?",
           [upperCaseNameClass, upperCaseSpeciality, upperCaseLevel, upperCaseCollegeYearValue],
           (tx, res) => {
             if (res.rows.length > 0) {
               setAddClassError('This class already exists.');
               isValid = false;
-              console.log('This class already exists.');
             }
             // Resolve the promise with the validation result
             resolve(isValid);
@@ -184,12 +182,10 @@ const Home = ({ navigation }: { navigation: any }) => {
           if (res.rowsAffected == 1) {
             Alert.alert('Class added successfully!');
 
-            console.log('class added');
+            
 
           } else {
             Alert.alert('Error');
-            console.log('error');
-            console.log(res);
           }
           if (SelectedCollegeYear != collegeYearValue) {
             db.transaction((tx) => {
@@ -199,7 +195,6 @@ const Home = ({ navigation }: { navigation: any }) => {
                 (tx, results) => {
                   var temp = [];
                   for (let i = 0; i < results.rows.length; ++i) {
-                    console.log(results.rows.item(i));
                     temp.push(results.rows.item(i));
                   }
                   setClassList(temp);
@@ -258,10 +253,10 @@ const Home = ({ navigation }: { navigation: any }) => {
         }
       }
 
-      const upperCaseNameClass = editClassName.toUpperCase();
-      const upperCaseSpeciality = editClassSpeciality.toUpperCase();
-      const upperCaseLevel = editClasslevel.toUpperCase();
-      const upperCaseCollegeYearValue = editClassCollegeYear.toUpperCase();
+      const upperCaseNameClass = editClassName.trim().toUpperCase();
+      const upperCaseSpeciality = editClassSpeciality.trim().toUpperCase();
+      const upperCaseLevel = editClasslevel.trim().toUpperCase();
+      const upperCaseCollegeYearValue = editClassCollegeYear.trim().toUpperCase();
 
       db.transaction((txn) => {
         txn.executeSql(
@@ -276,13 +271,12 @@ const Home = ({ navigation }: { navigation: any }) => {
               upperCaseCollegeYearValue !== originalClass.class_collegeYear.toUpperCase()
             ) {
               txn.executeSql(
-                "SELECT * FROM table_class WHERE UPPER(class_name)=? AND UPPER(class_speciality)=? AND UPPER(class_level)=? AND UPPER(class_collegeYear)=?",
+                "SELECT * FROM table_class WHERE UPPER(TRIM(class_name))=? AND UPPER(TRIM(class_speciality))=? AND UPPER(TRIM(class_level))=? AND UPPER(TRIM(class_collegeYear))=?",
                 [upperCaseNameClass, upperCaseSpeciality, upperCaseLevel, upperCaseCollegeYearValue],
                 (tx, res) => {
                   if (res.rows.length > 0) {
                     setEditClassError('This class already exists.');
                     isValid = false;
-                    console.log('This class already exists.');
                   }
                   resolve(isValid);
                 }
@@ -323,11 +317,8 @@ const Home = ({ navigation }: { navigation: any }) => {
         (tex, res) => {
           if (res.rowsAffected === 1) {
             Alert.alert('Class updated successfully!');
-            console.log('Class updated');
           } else {
             Alert.alert('Error updating class');
-            console.log('Error updating class');
-            console.log(res);
           }
         }
       );
@@ -345,7 +336,7 @@ const Home = ({ navigation }: { navigation: any }) => {
     deleteClassId = item.class_id.toString();
     deleteClass();
   }
-  const deleteClass = () => {
+  const deleteClass = async () => {
     Alert.alert(
       'Confirm Deletion',
       'Do you really want to delete this class?',
@@ -358,35 +349,43 @@ const Home = ({ navigation }: { navigation: any }) => {
           text: 'Delete',
           onPress: async () => {
             try {
-              await db.transaction((txn) => {
-                txn.executeSql(
-                  'DELETE FROM table_class WHERE class_id=?',
-                  [deleteClassId],
-                  (tx, res) => {
-                    if (res.rowsAffected === 1) {
-                      Alert.alert('Class deleted successfully!');
-                    } else {
-                      Alert.alert('Error deleting class');
+              await db.transaction(async (txn) => {
+                const deleteClassQuery = 'DELETE FROM table_class WHERE class_id=?';
+                const deleteRelatedQueries = [
+                  'DELETE FROM table_group WHERE class_id=?',
+                  'DELETE FROM table_students WHERE class_id=?',
+                  'DELETE FROM table_session WHERE class_id=?',
+                  'DELETE FROM table_presence WHERE class_id=?',
+                ];
+  
+                txn.executeSql(deleteClassQuery, [deleteClassId], (tx, res) => {
+                  if (res.rowsAffected === 1) {
+                    for (const query of deleteRelatedQueries) {
+                      txn.executeSql(query, [deleteClassId]);
                     }
+                    Alert.alert('Class deleted successfully!');
+                  } else {
+                    Alert.alert('Error deleting class');
                   }
-                );
+                });
               });
-
+  
               if (SelectedCollegeYear.length > 0) {
                 await collegeYearClass(SelectedCollegeYear);
               } else {
                 await fetchLastCollegeYear();
               }
-
+  
             } catch (error) {
               console.error('Error deleting class:', error);
-              Alert.alert('Error deleting class');
+              Alert.alert('Error deleting class. Please try again.');
             }
           },
         },
       ]
     );
   };
+  
 
   // fetch all data class from sqlite db
   useEffect(() => {
@@ -397,7 +396,6 @@ const Home = ({ navigation }: { navigation: any }) => {
         (tx, results) => {
           var temp = [];
           for (let i = 0; i < results.rows.length; ++i) {
-            console.log(results.rows.item(i));
             temp.push(results.rows.item(i));
           }
           setClassList(temp);
@@ -421,7 +419,7 @@ const Home = ({ navigation }: { navigation: any }) => {
     });
   }
   // Fetch the last collegeYear from the table
-  const lastcolleg = () =>{
+  const lastcolleg = () => {
     db.transaction((tx) => {
       tx.executeSql(
         'SELECT DISTINCT class_collegeYear FROM table_class ORDER BY class_collegeYear DESC LIMIT 1',
@@ -462,7 +460,6 @@ const Home = ({ navigation }: { navigation: any }) => {
         (tx, results) => {
           var temp = [];
           for (let i = 0; i < results.rows.length; ++i) {
-            console.log(results.rows.item(i));
             temp.push(results.rows.item(i));
           }
           setcollegeYearClassList(temp);
@@ -481,7 +478,6 @@ const Home = ({ navigation }: { navigation: any }) => {
         (tx, results) => {
           var temp = [];
           for (let i = 0; i < results.rows.length; ++i) {
-            console.log(results.rows.item(i));
             temp.push(results.rows.item(i));
           }
           setcollegeYearClassList(temp);
@@ -508,7 +504,6 @@ const Home = ({ navigation }: { navigation: any }) => {
         (tx, results) => {
           var temp = [];
           for (let i = 0; i < results.rows.length; ++i) {
-            console.log(results.rows.item(i));
             temp.push(results.rows.item(i));
           }
           setcollegeYearClassList(temp);
@@ -536,7 +531,7 @@ const Home = ({ navigation }: { navigation: any }) => {
         <Ionicons name="search-outline" size={24} color="#05BFDB" />
         <TextInput
           style={{ paddingLeft: 8, fontSize: 16, flex: 1 }}
-          placeholder='Search for Student...'
+          placeholder='Search for Class...'
           value={searchText}
           onChangeText={(text) => setSearchText(text)}
         />

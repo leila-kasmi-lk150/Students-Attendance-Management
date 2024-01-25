@@ -19,8 +19,13 @@
     "expo": "~49.0.15",
     "expo-constants": "~14.4.2",
     "expo-document-picker": "~11.5.4",
+    "expo-file-system": "~15.4.5",
+    "expo-intent-launcher": "~10.7.0",
+    "expo-permissions": "~14.2.1",
+    "expo-sharing": "~11.5.0",
     "expo-sqlite": "~11.3.3",
     "expo-status-bar": "~1.6.0",
+    "expo-yarn-workspaces": "^2.3.2",
     "firebase": "^10.7.0",
     "moment": "^2.29.4",
     "react": "18.2.0",
@@ -42,9 +47,7 @@
     "react-native-table-component": "^1.2.2",
     "react-native-web": "~0.19.6",
     "xlsx": "^0.18.5",
-    "expo-permissions": "~14.2.1",
-    "expo-file-system": "~15.4.5",
-    "expo-sharing": "~11.5.0"
+    "xlsx-style": "^0.8.13"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",

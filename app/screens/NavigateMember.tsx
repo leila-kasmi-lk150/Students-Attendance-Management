@@ -7,12 +7,14 @@ import Presence from './Presence';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import AttendancePieChart from './AttendancePieChart';
+import StudentInformation from './StudentInformation';
 
 // This stack for all screens of Member
 const MemberStack = createNativeStackNavigator();
 const MemberScreens = ({ route }: { route: any }) => (
   <MemberStack.Navigator>
     <MemberStack.Screen name='MembreScreens' component={Membre} initialParams={route.params}  options={{ headerShown: false }} />
+    <MemberStack.Screen name='StudentInformationScreens' component={StudentInformation} initialParams={route.params}  options={{ headerShown: false }} />
   </MemberStack.Navigator>
 );
 
