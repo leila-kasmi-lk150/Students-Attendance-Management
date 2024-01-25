@@ -78,7 +78,6 @@ const Membre = ({ route, navigation }: { route: any, navigation: any }) => {
         "SELECT name FROM sqlite_master WHERE type='table' AND name='table_students'",
         [],
         (tx, res) => {
-          console.log('item:', res.rows.length);
           if (res.rows.length === 0) {
             txn.executeSql('DROP TABLE IF EXISTS table_students', []);
             txn.executeSql(
@@ -117,18 +116,17 @@ const Membre = ({ route, navigation }: { route: any, navigation: any }) => {
         setstudentFirstNameError('First name is required');
         isValid = false;
       }
-      const upperCaseFirstName = studentFirstName.toUpperCase();
-      const upperCaseLastName = studentLastName.toUpperCase();
+      const upperCaseFirstName = studentFirstName.trim().toUpperCase();
+      const upperCaseLastName = studentLastName.trim().toUpperCase();
 
       db.transaction((txn) => {
         txn.executeSql(
-          "SELECT * FROM table_students WHERE UPPER(student_firstName)=? AND UPPER(student_lastName)=? AND group_id=?",
+          "SELECT * FROM table_students WHERE UPPER(TRIM(student_firstName))=? AND UPPER(TRIM(student_lastName))=? AND group_id=?",
           [upperCaseFirstName, upperCaseLastName, group_id],
           (tx, res) => {
             if (res.rows.length > 0) {
               setAddStudentError('This student already exists.');
               isValid = false;
-              console.log('This student already exists.');
             }
             resolve(isValid);
           }
@@ -144,12 +142,9 @@ const Membre = ({ route, navigation }: { route: any, navigation: any }) => {
         (tex, res) => {
           if (res.rowsAffected == 1) {
             Alert.alert('Student added successfully!');
-            console.log('student added');
 
           } else {
             Alert.alert('Error');
-            console.log('error');
-            console.log(res);
           }
         }
       );
@@ -168,7 +163,6 @@ const Membre = ({ route, navigation }: { route: any, navigation: any }) => {
         (tx, results) => {
           var temp = [];
           for (let i = 0; i < results.rows.length; ++i) {
-            console.log(results.rows.item(i));
             temp.push(results.rows.item(i));
           }
           setStudentList(temp);
@@ -180,6 +174,9 @@ const Membre = ({ route, navigation }: { route: any, navigation: any }) => {
   useEffect(() => {
     // Call the search function when the search text changes
     searchStudent();
+    if (searchText.length == 0) {
+      fetchStusent();
+    }
   }, [searchText]);
 
   // fetch all data student from sqlite db
@@ -191,7 +188,6 @@ const Membre = ({ route, navigation }: { route: any, navigation: any }) => {
         (tx, results) => {
           var temp = [];
           for (let i = 0; i < results.rows.length; ++i) {
-            console.log(results.rows.item(i));
             temp.push(results.rows.item(i));
           }
           setStudentList(temp);
@@ -245,7 +241,6 @@ const Membre = ({ route, navigation }: { route: any, navigation: any }) => {
 
         //  success message
         Alert.alert('List of students successfully imported')
-        console.log('Data successfully imported into table_students.');
 
       }
     } catch (error) {
@@ -255,17 +250,22 @@ const Membre = ({ route, navigation }: { route: any, navigation: any }) => {
 
   const validateDataFormat = (data: ExcelData[]) => {
     const errors: string[] = [];
-
+    var leila = 0;
     // Check for non-string values in Nom (Surname) and Prénom (Name)
     data.forEach((row: ExcelData, index: number) => {
       const nom = row['Nom'] || row['Surname'];
       const prenom = row['Prénom'] || row['First Name'];
 
+      
       if (typeof nom !== 'string' || typeof prenom !== 'string') {
         errors.push(`Invalid data at row ${index + 2}: ${nom} ${prenom} Surname and Name must be strings`);
-        Alert.alert(`Invalid data at row ${index + 2}: Surname and Name must be strings`);
+        leila = leila +1;
       }
+      
     });
+    if(leila > 0){
+        Alert.alert(`Invalid`);
+      }
 
 
     return errors;
@@ -304,7 +304,7 @@ const Membre = ({ route, navigation }: { route: any, navigation: any }) => {
     deleteStudentId = item.student_id.toString();
     deleteStudent();
   }
-  const deleteStudent = () => {
+  const deleteStudent = async () => {
     Alert.alert(
       'Confirm Deletion',
       'Do you really want to delete this student?',
@@ -317,29 +317,30 @@ const Membre = ({ route, navigation }: { route: any, navigation: any }) => {
           text: 'Delete',
           onPress: async () => {
             try {
-              await db.transaction((txn) => {
-                txn.executeSql(
-                  'DELETE FROM table_students WHERE student_id=?',
-                  [deleteStudentId],
-                  (tx, res) => {
-                    if (res.rowsAffected === 1) {
-                      Alert.alert('Student deleted successfully!');
-                    } else {
-                      Alert.alert('Error deleting student');
-                    }
+              await db.transaction(async (txn) => {
+                const deleteStudentQuery = 'DELETE FROM table_students WHERE student_id=?';
+                const deleteRelatedQuery = 'DELETE FROM table_presence WHERE student_id=?';
+  
+                txn.executeSql(deleteStudentQuery, [deleteStudentId], async (tx, res) => {
+                  if (res.rowsAffected === 1) {
+                    await txn.executeSql(deleteRelatedQuery, [deleteStudentId]);
+                    Alert.alert('Student deleted successfully!');
+                  } else {
+                    Alert.alert('Error deleting student');
                   }
-                );
+                });
               });
               fetchStusent();
             } catch (error) {
               console.error('Error deleting student:', error);
-              Alert.alert('Error deleting student');
+              Alert.alert('Error deleting student. Please try again.');
             }
           },
         },
       ]
     );
   };
+  
   // Edit student
   var [editStudentFirstName, setEditStudentFirstName] = useState('');
   var [editStudentLastName, setEditStudentLastName] = useState('');
@@ -366,8 +367,8 @@ const Membre = ({ route, navigation }: { route: any, navigation: any }) => {
         setstudentFirstNameErrorEdit('First name is required');
         isValid = false;
       }
-      const upperCaseFirstName = editStudentFirstName.toUpperCase();
-      const upperCaseLastName = editStudentLastName.toUpperCase();
+      const upperCaseFirstName = editStudentFirstName.trim().toUpperCase();
+      const upperCaseLastName = editStudentLastName.trim().toUpperCase();
 
       db.transaction((txn) => {
         txn.executeSql(
@@ -376,20 +377,18 @@ const Membre = ({ route, navigation }: { route: any, navigation: any }) => {
           (tx, res) => {
             const studenExist = res.rows.item(0);
             if (
-              upperCaseFirstName !== studenExist.student_firstName.toUpperCase() ||
-              upperCaseLastName !== studenExist.student_lastName.toUpperCase() ||
+              upperCaseFirstName !== studenExist.student_firstName.trim().toUpperCase() ||
+              upperCaseLastName !== studenExist.student_lastName.trim().toUpperCase() ||
               editStudentGroup !== group_id ||
               editStudentGroup === group_id
             ) {
-              console.log('defrent information');
               txn.executeSql(
-                "SELECT * FROM table_students WHERE UPPER(student_firstName)=? AND UPPER(student_lastName)=? AND group_id=?",
+                "SELECT * FROM table_students WHERE UPPER(TRIM(student_firstName))=? AND UPPER(TRIM(student_lastName))=? AND group_id=?",
                 [upperCaseFirstName, upperCaseLastName, editStudentGroup],
                 (tx, res) => {
                   if (res.rows.length > 0) {
                     setEditStudentError('This student already exists in this group');
                     isValid = false;
-                    console.log('This student already exists in this group');
                   }
                   resolve(isValid);
                 }
@@ -442,7 +441,7 @@ const Membre = ({ route, navigation }: { route: any, navigation: any }) => {
           if (res.rowsAffected === 1) {
             if (editStudentGroup == group_id) {
               Alert.alert('Student updated successfully!');
-              console.log('Student updated');
+              
             } else {
               db.transaction((tx) => {
                 tx.executeSql(
@@ -456,15 +455,12 @@ const Membre = ({ route, navigation }: { route: any, navigation: any }) => {
                       ' ' +
                       transferredGroup.group_type
                     );
-                    console.log('Student updated');
                   }
                 );
               });
             }
           } else {
             Alert.alert('Error updating student');
-            console.log('Error updating student');
-            console.log(res);
           }
         }
       );
@@ -477,7 +473,6 @@ const Membre = ({ route, navigation }: { route: any, navigation: any }) => {
         (tx, results) => {
           var temp = [];
           for (let i = 0; i < results.rows.length; ++i) {
-            console.log(results.rows.item(i));
             temp.push(results.rows.item(i));
           }
           setStudentList(temp);
@@ -582,7 +577,8 @@ const Membre = ({ route, navigation }: { route: any, navigation: any }) => {
             <View style={{ backgroundColor: colors.light, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 7, borderRadius: 16, marginVertical: 16, alignItems: 'center', }}>
               <TouchableOpacity
                 style={{ flexDirection: 'row', paddingLeft: 20, paddingRight: 20, paddingTop: 30, paddingBottom: 30 }}
-              >
+                onPress={() => navigation.navigate('StudentInformationScreens', { student_id: item.student_id, student_firstName : item.student_firstName, student_lastName: item.student_lastName, group_id: group_id, group_name: group_name, group_type: group_type, class_id: class_id, class_name: class_name, class_speciality: class_speciality, class_level: class_level })}
+                >
                 <Text style={{ flex: 1 }}>{item.student_lastName} {item.student_firstName}</Text>
                 <Icon name="edit"
                   onPress={() => {

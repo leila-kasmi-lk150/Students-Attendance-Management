@@ -30,6 +30,34 @@ const Session = ({ route, navigation }: { route: any, navigation: any }) => {
   const { group_name } = route.params;
   const { group_type } = route.params;
 
+  interface StudentItem {
+    student_id: string;
+    student_firstName: string;
+    student_lastName: string;
+    class_id: number;
+    group_id: number;
+
+  }
+  const [studentList, setStudentList] = useState<StudentItem[]>([]);
+  const fetchStusent = () => {
+    db.transaction((tx) => {
+      tx.executeSql(
+        'SELECT * FROM table_students WHERE group_id=?',
+        [group_id],
+        (tx, results) => {
+          var temp = [];
+          for (let i = 0; i < results.rows.length; ++i) {
+            temp.push(results.rows.item(i));
+          }
+          setStudentList(temp);
+        }
+      );
+    });
+  }
+  useEffect(() => {
+    fetchStusent();
+  }, []);
+
   // Model for add new session 
   const [isModalVisible, setModalVisible] = useState(false);
   const toggleModal = () => {
@@ -531,7 +559,14 @@ const Session = ({ route, navigation }: { route: any, navigation: any }) => {
         )}
 
         <View style={{ backgroundColor: "#fff", borderRadius: 10, marginVertical: 25, padding: 15, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 7, width: screenWidth * 0.2, alignItems: 'center', justifyContent: 'center' }}>
-          <TouchableOpacity style={{ alignItems: 'center', justifyContent: 'center' }} onPress={generateExcel}>
+          <TouchableOpacity style={{ alignItems: 'center', justifyContent: 'center' }} onPress={() => {
+          if (sessionList.length ==0) {
+            Alert.alert('No Sessions', 'Please add sessions before exporting an Excel file.');
+          }else{
+            generateExcel(); 
+          }
+          
+        }}>
             <Ionicons name='download' size={20} color="#05BFDB" />
             <View><Text style={{ color: colors.gray, fontWeight: 'bold', fontSize: 10 }}>Export</Text></View>
           </TouchableOpacity>
@@ -541,7 +576,12 @@ const Session = ({ route, navigation }: { route: any, navigation: any }) => {
       {/* Add new session */}
       <View style={{ alignItems: 'center' }}>
         <TouchableOpacity style={styles.addNewClassButton} onPress={() => {
-          setModalVisible(true); // Open add session modal
+          if (studentList.length ==0) {
+          Alert.alert('Empty Group', 'Please add students before creating a new session.');
+          }else{
+            setModalVisible(true); // Open add session modal
+          }
+          
         }}>
           <Icon name="plus" size={15} color="white" style={styles.plusIcon} />
           <Text style={styles.buttonText}>Add New Session</Text>

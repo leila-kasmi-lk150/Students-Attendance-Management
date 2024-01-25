@@ -101,59 +101,105 @@ const Session = ({ route, navigation }: { route: any, navigation: any }) => {
         `SELECT class_name, class_speciality, class_level, class_collegeYear FROM table_class WHERE class_id = (SELECT class_id FROM table_group WHERE group_id = ?)`,
         [group_id],
         (_, classData) => {
-          const classRows = [];
+          const classRows: Array<{
+            class_name: string;
+            class_speciality: string;
+            class_level: string;
+            class_collegeYear: string;
+          }> = [];
+
           for (let i = 0; i < classData.rows.length; i++) {
             classRows.push(classData.rows.item(i));
           }
+
           const [classRow] = classRows;
-    
+
           // 2. Fetch group information
           transaction.executeSql(
             `SELECT group_name, group_type FROM table_group WHERE group_id = ?`,
             [group_id],
             (_, groupData) => {
-              const groupRows = [];
+              const groupRows: Array<{
+                group_name: string;
+                group_type: string;
+              }> = [];
+
               for (let i = 0; i < groupData.rows.length; i++) {
                 groupRows.push(groupData.rows.item(i));
               }
+
               const [groupRow] = groupRows;
-    
+
               // 3. Fetch student and session data
               transaction.executeSql(
                 `
-                SELECT
-                s.student_firstName,
-                s.student_lastName,
-                p.state,
-                strftime('%d/%m/%Y %H:%M', se.session_date || ' ' || se.session_time) AS session_datetime
-                FROM table_students s
-                JOIN table_presence p ON s.student_id = p.student_id
-                JOIN table_session se ON p.session_id = se.session_id
-                WHERE s.group_id = ?
-                AND datetime(se.session_date || ' ' || se.session_time) BETWEEN datetime(?) AND datetime(?)
-                ORDER BY s.student_lastName, session_datetime
-               `,
+                  SELECT
+                    s.student_id,
+                    s.student_firstName,
+                    s.student_lastName,
+                    p.state,
+                    strftime('%d/%m/%Y %H:%M', se.session_date || ' ' || se.session_time) AS session_datetime
+                  FROM table_students s
+                  JOIN table_presence p ON s.student_id = p.student_id
+                  JOIN table_session se ON p.session_id = se.session_id
+                  WHERE s.group_id = ?
+                  AND datetime(se.session_date || ' ' || se.session_time) BETWEEN datetime(?) AND datetime(?)
+                  ORDER BY s.student_lastName, session_datetime
+                `,
                 [group_id, selectedDateFromExport, selectedDateTOExport],
                 (_, studentSessionData) => {
-                  const studentRows = [];
+                  const studentRows: Array<{
+                    student_id: number;
+                    student_firstName: string;
+                    student_lastName: string;
+                    state: string;
+                    session_datetime: string;
+                  }> = [];
+
                   for (let i = 0; i < studentSessionData.rows.length; i++) {
                     studentRows.push(studentSessionData.rows.item(i));
                   }
-    
-                  const headerRow = [
-                    'First Name',
-                    'Last Name',
-                    ...Array.from(new Set(studentRows.map((row) => row.session_datetime))).map((datetime) => datetime),
-                  ];
-    
-                  const dataRows = studentRows.map((row) => {
-                    const sessionState = Object.fromEntries(
-                      row.session_datetime.split(' ').map((datetime: any) => [datetime, row.state])
-                    );
-                    return [row.student_firstName, row.student_lastName, ...Object.values(sessionState)];
+
+                  const sessionsData: Array<{ session_datetime: string }> = Array.from(
+                    new Set(studentRows.map((row) => row.session_datetime))
+                  ).map((datetime) => {
+                    return {
+                      session_datetime: datetime,
+                    };
                   });
-    
-                  const worksheet = [
+
+                  const headerRow: Array<string | number> = [
+                    'Last Name',
+                    'First Name',
+                    ...sessionsData.map((session) => session.session_datetime),
+                  ];
+
+                  interface DataRow {
+                    student_id: number | string;
+                    last_name: string;
+                    first_name: string;
+                    [key: string]: string | number; // Allow any string or number key
+                  }
+
+                  const dataRows: DataRow[] = studentRows.reduce((acc: DataRow[], row) => {
+                    const existingRow = acc.find((r) => r.student_id === row.student_id);
+                  
+                    if (existingRow) {
+                      existingRow[row.session_datetime] = row.state;
+                    } else {
+                      const newRow: DataRow = {
+                        student_id: row.student_id,
+                        last_name: row.student_lastName,
+                        first_name: row.student_firstName,
+                        [row.session_datetime]: row.state,
+                      };
+                      acc.push(newRow);
+                    }
+                  
+                    return acc;
+                  }, []);
+
+                  const worksheet: Array<Array<string | number>> = [
                     // Class information
                     [
                       classRow.class_name,
@@ -165,15 +211,16 @@ const Session = ({ route, navigation }: { route: any, navigation: any }) => {
                     [groupRow.group_name, groupRow.group_type],
                     // Header row with student and session dates
                     headerRow,
-                    ...dataRows,
+                    ...dataRows.map((row) => {
+                      return [row.last_name, row.first_name, ...Object.values(row).slice(3)];
+                    }),
                   ];
-    
+
                   let wb = XLSX.utils.book_new();
                   let ws = XLSX.utils.aoa_to_sheet(worksheet);
                   XLSX.utils.book_append_sheet(wb, ws, 'attendance', true);
-                  const base64 = XLSX.write(wb, { bookType: 'xlsx', type: 'base64' });
+                  const base64 = XLSX.write(wb, { type: 'base64' });
                   const filename = FileSystem.documentDirectory + 'attendance.xlsx';
-    
                   FileSystem.writeAsStringAsync(filename, base64, {
                     encoding: FileSystem.EncodingType.Base64,
                   }).then(() => {
@@ -186,7 +233,9 @@ const Session = ({ route, navigation }: { route: any, navigation: any }) => {
         }
       );
     });
-    
+
+
+
 
 
 
