@@ -158,7 +158,7 @@ const Membre = ({ route, navigation }: { route: any, navigation: any }) => {
   const searchStudent = () => {
     db.transaction((tx) => {
       tx.executeSql(
-        'SELECT * FROM table_students WHERE student_firstName LIKE ? OR student_lastName LIKE ? AND group_id=?',
+        'SELECT * FROM table_students WHERE ( student_firstName LIKE ? OR student_lastName LIKE ? ) AND group_id=?',
         [`%${searchText}%`, `%${searchText}%`, group_id],
         (tx, results) => {
           var temp = [];
@@ -200,8 +200,11 @@ const Membre = ({ route, navigation }: { route: any, navigation: any }) => {
     fetchStusent();
   }, []);
 
-  // import XLSX from 'xlsx';
-  type ExcelData = {
+  // import rxcel file
+
+
+   // import XLSX from 'xlsx';
+   type ExcelData = {
     [key: string]: string;
   };
 
@@ -264,8 +267,15 @@ const Membre = ({ route, navigation }: { route: any, navigation: any }) => {
       
     });
     if(leila > 0){
-        Alert.alert(`Invalid`);
-      }
+      Alert.alert(
+        'Invalid file format',
+        'The file should contain 3 columns: ' +
+        'the first for the number of students, ' +
+        'the second for surname, ' +
+        'and the third for first name. ' +
+        'Ensure the first row represents column names.'
+      );
+            }
 
 
     return errors;
@@ -298,6 +308,8 @@ const Membre = ({ route, navigation }: { route: any, navigation: any }) => {
 
   //end  import XLSX from 'xlsx';
 
+  //end  import XLSX from 'xlsx';
+
   /* ========= Delet student =======*/
   var [deleteStudentId, setDeleteStudentId] = useState('');
   const getDataDeleteStudent = (item: any) => {
@@ -320,7 +332,7 @@ const Membre = ({ route, navigation }: { route: any, navigation: any }) => {
               await db.transaction(async (txn) => {
                 const deleteStudentQuery = 'DELETE FROM table_students WHERE student_id=?';
                 const deleteRelatedQuery = 'DELETE FROM table_presence WHERE student_id=?';
-  
+
                 txn.executeSql(deleteStudentQuery, [deleteStudentId], async (tx, res) => {
                   if (res.rowsAffected === 1) {
                     await txn.executeSql(deleteRelatedQuery, [deleteStudentId]);
@@ -340,7 +352,7 @@ const Membre = ({ route, navigation }: { route: any, navigation: any }) => {
       ]
     );
   };
-  
+
   // Edit student
   var [editStudentFirstName, setEditStudentFirstName] = useState('');
   var [editStudentLastName, setEditStudentLastName] = useState('');
@@ -441,7 +453,7 @@ const Membre = ({ route, navigation }: { route: any, navigation: any }) => {
           if (res.rowsAffected === 1) {
             if (editStudentGroup == group_id) {
               Alert.alert('Student updated successfully!');
-              
+
             } else {
               db.transaction((tx) => {
                 tx.executeSql(
@@ -493,7 +505,7 @@ const Membre = ({ route, navigation }: { route: any, navigation: any }) => {
         <Text style={{ flex: 1, fontSize: 25, fontWeight: '700' }}>{class_name} {group_name} {group_type}</Text>
       </View>
 
-        {/* Search */}
+      {/* Search */}
       <View style={{ backgroundColor: "#fff", flexDirection: "row", paddingVertical: 16, borderRadius: 10, paddingHorizontal: 16, marginVertical: 16, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 7 }}>
         <Ionicons name="search-outline" size={24} color="#05BFDB" onPress={searchStudent} />
         <TextInput
@@ -577,8 +589,8 @@ const Membre = ({ route, navigation }: { route: any, navigation: any }) => {
             <View style={{ backgroundColor: colors.light, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 7, borderRadius: 16, marginVertical: 16, alignItems: 'center', }}>
               <TouchableOpacity
                 style={{ flexDirection: 'row', paddingLeft: 20, paddingRight: 20, paddingTop: 30, paddingBottom: 30 }}
-                onPress={() => navigation.navigate('StudentInformationScreens', { student_id: item.student_id, student_firstName : item.student_firstName, student_lastName: item.student_lastName, group_id: group_id, group_name: group_name, group_type: group_type, class_id: class_id, class_name: class_name, class_speciality: class_speciality, class_level: class_level })}
-                >
+                onPress={() => navigation.navigate('StudentInformationScreens', { student_id: item.student_id, student_firstName: item.student_firstName, student_lastName: item.student_lastName, group_id: group_id, group_name: group_name, group_type: group_type, class_id: class_id, class_name: class_name, class_speciality: class_speciality, class_level: class_level })}
+              >
                 <Text style={{ flex: 1 }}>{item.student_lastName} {item.student_firstName}</Text>
                 <Icon name="edit"
                   onPress={() => {

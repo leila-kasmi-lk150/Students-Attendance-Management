@@ -1,16 +1,14 @@
-import { Alert, FlatList, StyleSheet, Text, TouchableOpacity, View, Dimensions, TextInput, } from "react-native";
-import React, { useEffect, useMemo, useState } from "react";
+import { Alert, FlatList, StyleSheet, Text, TouchableOpacity, View, TextInput, } from "react-native";
+import React, { useEffect, useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import Icon from "react-native-vector-icons/FontAwesome";
-import { DataTable, RadioButton, } from "react-native-paper";
+import {  RadioButton, } from "react-native-paper";
 import { colors } from "../component/Constant";
 import { ScreenWidth } from "react-native-elements/dist/helpers";
 import Modal from "react-native-modal";
 import * as Sqlite from 'expo-sqlite';
 const Presence = ({ route, navigation }: { route: any; navigation: any }) => {
   let db = Sqlite.openDatabase('Leiknach.db');
-  const screenWidth = Dimensions.get("window").width;
   const { class_id } = route.params;
   const { class_name } = route.params;
   const { class_speciality } = route.params;
@@ -27,7 +25,6 @@ const Presence = ({ route, navigation }: { route: any; navigation: any }) => {
         "SELECT name FROM sqlite_master WHERE type='table' AND name='table_presence'",
         [],
         (tx, res) => {
-          console.log('item:', res.rows.length);
           if (res.rows.length === 0) {
             txn.executeSql('DROP TABLE IF EXISTS table_presence', []);
             txn.executeSql(
@@ -66,10 +63,8 @@ const Presence = ({ route, navigation }: { route: any; navigation: any }) => {
           [selectedStatus, comment, selectedStudent?.student_id, session_id],
           (tx, results) => {
             if (results.rowsAffected > 0) {
-              console.log('Data updated successfully in the database');
-            } else {
-              console.log('Failed to update data in the database');
-            }
+              Alert.alert('Data updated successfully in the database');
+            } 
           }
         );
       });
@@ -78,7 +73,6 @@ const Presence = ({ route, navigation }: { route: any; navigation: any }) => {
       toggleModalPresence();
 
 
-      Alert.alert("Presence saved successfully!");
     } catch (error) {
       console.error(error);
       Alert.alert("Failed to save presence");
@@ -95,7 +89,7 @@ const Presence = ({ route, navigation }: { route: any; navigation: any }) => {
         onPress={() => {
           setSelectedStudent(item);
           setComment(item.comment);
-          setSelectedStatus(item.state); // Set the initial state for the modal
+          setSelectedStatus(item.state); 
           setModalPresenceVisible(true);
         }}
         style={{ flexDirection: "row", paddingLeft: 20, paddingRight: 20, paddingTop: 30, paddingBottom: 30, }}
@@ -134,12 +128,11 @@ const Presence = ({ route, navigation }: { route: any; navigation: any }) => {
   const searchStudent = () => {
     db.transaction((tx) => {
       tx.executeSql(
-        'SELECT TS.student_id, TS.student_firstName, TS.student_lastName, TP.comment, TP.state, TP.class_id, TP.group_id FROM table_students TS LEFT JOIN table_presence TP ON TS.student_id = TP.student_id AND TP.session_id = ? WHERE TS.student_firstName LIKE ? OR TS.student_lastName LIKE ? AND TP.session_id=?',
+        'SELECT TS.student_id, TS.student_firstName, TS.student_lastName, TP.comment, TP.state, TP.class_id, TP.group_id FROM table_students TS LEFT JOIN table_presence TP ON TS.student_id = TP.student_id AND TP.session_id = ? WHERE (TS.student_firstName LIKE ? OR TS.student_lastName LIKE ? ) AND TP.session_id=?',
         [session_id, `%${searchText}%`, `%${searchText}%`, session_id],
         (tx, results) => {
           var temp = [];
           for (let i = 0; i < results.rows.length; ++i) {
-            console.log(results.rows.item(i));
             temp.push(results.rows.item(i));
 
           }
@@ -161,7 +154,6 @@ const Presence = ({ route, navigation }: { route: any; navigation: any }) => {
         (tx, results) => {
           var temp = [];
           for (let i = 0; i < results.rows.length; ++i) {
-            console.log(results.rows.item(i));
             temp.push(results.rows.item(i));
 
           }
@@ -273,11 +265,9 @@ const Presence = ({ route, navigation }: { route: any; navigation: any }) => {
       // Assuming fetchSession involves updating state
       await fetchSession(); // Wait for fetchSession to complete before continuing
 
-      console.log(`Data inserted successfully for students: ${successfulStudents.join(', ')}`);
       Alert.alert('Data inserted successfully for students');
     } catch (error) {
       console.error(error);
-      console.log(`Failed to insert data for students`);
       Alert.alert('Error');
     }
   };
@@ -299,7 +289,6 @@ const Presence = ({ route, navigation }: { route: any; navigation: any }) => {
         (tx, results) => {
           var temp = [];
           for (let i = 0; i < results.rows.length; ++i) {
-            console.log(results.rows.item(i));
             temp.push(results.rows.item(i));
           }
           setStudentList(temp);
@@ -332,6 +321,7 @@ const Presence = ({ route, navigation }: { route: any; navigation: any }) => {
       await fetchSession();
       if (checkAttendance) {
         fetchPresence();
+        fetchStatistic();
       } else {
         fetchStusent();
       }
@@ -340,7 +330,35 @@ const Presence = ({ route, navigation }: { route: any; navigation: any }) => {
     fetchData();
   }, [checkAttendance]);
 
+  const [abCount, setAbCount] = useState(0);
+  const [pCount, setPCount] = useState(0);
+  const [jaCount, setJaCount] = useState(0);
 
+  const fetchStatistic = () => {
+      db.transaction((tx) => {
+          tx.executeSql(
+              'SELECT COUNT(state) as count FROM table_presence WHERE session_id=? AND state=?',
+              [session_id, 'P'],
+              (tx, results) => {
+                  setPCount(results.rows.item(0).count);
+              }
+          );
+          tx.executeSql(
+              'SELECT COUNT(state) as count FROM table_presence WHERE session_id=? AND state=?',
+              [session_id, 'Ab'],
+              (tx, results) => {
+                  setAbCount(results.rows.item(0).count);
+              }
+          );
+          tx.executeSql(
+              'SELECT COUNT(state) as count FROM table_presence WHERE session_id=? AND state=?',
+              [session_id, 'JA'],
+              (tx, results) => {
+                  setJaCount(results.rows.item(0).count);
+              }
+          );
+      });
+  };
   return (
     <SafeAreaView style={{ flex: 1, marginHorizontal: 16, marginTop: 20 }}>
 
@@ -356,9 +374,7 @@ const Presence = ({ route, navigation }: { route: any; navigation: any }) => {
                 onPress={() => navigation.navigate('SessionScreens', { group_id: group_id, group_name: group_name, group_type: group_type, class_id: class_id, class_name: class_name, class_speciality: class_speciality, class_level: class_level })}
               />
               <Text style={{ flex: 1, fontSize: 25, fontWeight: "700" }}> {class_name} {group_name} {group_type}</Text>
-              <Ionicons name="ios-settings-outline" size={25} color={colors.primary} style={{ top: 15 }}
-                onPress={() => navigation.navigate('AttendancePieChartScreens', { session_id: session_id, group_id: group_id, group_name: group_name, group_type: group_type, class_id: class_id, class_name: class_name, class_speciality: class_speciality, class_level: class_level })}
-              />
+              
             </View>
             {/* Search Section */}
             <View style={{ backgroundColor: "#fff", flexDirection: "row", paddingVertical: 16, borderRadius: 10, paddingHorizontal: 16, marginVertical: 16, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 7 }}>
@@ -374,11 +390,31 @@ const Presence = ({ route, navigation }: { route: any; navigation: any }) => {
               </TouchableOpacity>
             </View>
 
+            <View>
+        <Text style={{ fontSize: 17, fontWeight: "bold", marginTop: 25 }}>Statistic</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
 
+          <View style={{ backgroundColor: colors.light, marginRight: 36, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 18, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 7, marginVertical: 16, }}>
+            <Text style={{ color: colors.dark, fontSize: 18, }}
+              onPress={() => {
+              }}><Text style={{ color: colors.primary, fontWeight: 'bold' }}>P : </Text>{pCount}</Text>
+          </View>
+          <View style={{ backgroundColor: colors.light, marginRight: 36, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 18, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 7, marginVertical: 16, }}>
+            <Text style={{ color: colors.dark, fontSize: 18, }}
+              onPress={() => {
+              }}><Text style={{ color: colors.primary, fontWeight: 'bold' }}>Ab : </Text>{abCount}</Text>
+          </View>
+          <View style={{ backgroundColor: colors.light, marginRight: 36, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 18, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 7, marginVertical: 16, }}>
+            <Text style={{ color: colors.dark, fontSize: 18, }}
+              onPress={() => {
+              }}><Text style={{ color: colors.primary, fontWeight: 'bold' }}>JA : </Text>{jaCount}</Text>
+          </View>
+        </View>
+      </View>
 
             {/* consult the attendance state per session (P, Ab, JA , C */}
             <View style={{ marginTop: 22, flex: 1 }}>
-              <Text style={{ fontSize: 17, fontWeight: "bold" }}> Consult Attendance</Text>
+              <Text style={{ fontSize: 17, fontWeight: "bold" , marginBottom:10}}> Consult Attendance</Text>
               <View>
                 <FlatList
                   data={presenceList}

@@ -1,4 +1,3 @@
-import { StyleSheet, Text, View } from 'react-native'
 import React from 'react'
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Membre from './Membre';
@@ -6,7 +5,6 @@ import Session from './Session';
 import Presence from './Presence';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import AttendancePieChart from './AttendancePieChart';
 import StudentInformation from './StudentInformation';
 
 // This stack for all screens of Member
@@ -24,17 +22,10 @@ const SessionScreens = ({ route }: { route: any }) => (
   <SessionStack.Navigator>
     <SessionStack.Screen name='SessionScreens' component={Session} initialParams={route.params}  options={{ headerShown: false }} />
     <SessionStack.Screen name='PresenceScreens' component={Presence} initialParams={route.params}  options={{ headerShown: false }} />
-    <SessionStack.Screen name='AttendancePieChartScreens' component={AttendancePieChart} initialParams={route.params}  options={{ headerShown: false }} />
   </SessionStack.Navigator>
 );
 
-// This stack for all screens of Statistics
-const StatisticsStack = createNativeStackNavigator();
-// const StatisticsScreens = ({ route }: { route: any }) => (
-//   <StatisticsStack.Navigator>
-//     <StatisticsStack.Screen name='StatisticsScreens' component={Statistics} initialParams={route.params} options={{ headerShown: false }} />
-//   </StatisticsStack.Navigator>
-// );
+
 type TabIconName = 'ios-people' | 'ios-people-outline' | 'ios-checkmark-circle' | 'ios-checkmark-circle-outline' | 'ios-stats-chart' | 'ios-stats-chart-outline';
 
 const Tab = createBottomTabNavigator();
@@ -68,5 +59,3 @@ const NavigateMember = ({ route }: { route: any }) => {
 }
 
 export default NavigateMember
-
-const styles = StyleSheet.create({})

@@ -11,13 +11,10 @@ import * as Sqlite from 'expo-sqlite';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import moment from 'moment';
-import * as RNFS from 'react-native-fs';
 import * as XLSX from 'xlsx';
-import * as Permissions from 'expo-permissions';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const Session = ({ route, navigation }: { route: any, navigation: any }) => {
   let db = Sqlite.openDatabase('Leiknach.db');
@@ -115,12 +112,11 @@ const Session = ({ route, navigation }: { route: any, navigation: any }) => {
 
 
   const generateExcel = async () => {
-    console.log('============================');
 
     // Get selected dates and group ID
     const selectedDateFromExport = formattedDateFromExport;
     const selectedDateTOExport = formattedDateTOExport;
-    var worksheet;
+   
 
 
     db.transaction((transaction) => {
@@ -315,7 +311,6 @@ const Session = ({ route, navigation }: { route: any, navigation: any }) => {
         "SELECT name FROM sqlite_master WHERE type='table' AND name='table_session'",
         [],
         (tx, res) => {
-          console.log('item:', res.rows.length);
           if (res.rows.length === 0) {
             txn.executeSql('DROP TABLE IF EXISTS table_session', []);
             txn.executeSql(
@@ -340,7 +335,6 @@ const Session = ({ route, navigation }: { route: any, navigation: any }) => {
         (tx, results) => {
           var temp = [];
           for (let i = 0; i < results.rows.length; ++i) {
-            console.log(results.rows.item(i));
             temp.push(results.rows.item(i));
           }
           setSessionList(temp);
@@ -368,12 +362,9 @@ const Session = ({ route, navigation }: { route: any, navigation: any }) => {
             if (res.rows.length > 0) {
               const existingGroup = res.rows.item(0);
               setAddSessionError(` This session already exists.`);
-              console.log('This session already exists.');
 
               isValid = false;
-            } else {
-              console.log('20222.');
-            }
+            } 
             resolve(isValid);
           }
         );
@@ -387,7 +378,6 @@ const Session = ({ route, navigation }: { route: any, navigation: any }) => {
         [formattedDate, formattedTime, class_id, group_id],
         (_, { rowsAffected, insertId }) => {
           if (rowsAffected > 0) {
-            console.log(`Session added successfully! ID: ${insertId}`);
             Alert.alert('Session added successfully!')
             fetchSession();
           } else {
@@ -425,7 +415,17 @@ const Session = ({ route, navigation }: { route: any, navigation: any }) => {
                   [deleteSessionId],
                   (tx, res) => {
                     if (res.rowsAffected === 1) {
-                      Alert.alert('Session deleted successfully!');
+                      txn.executeSql(
+                        'DELETE FROM table_presence WHERE session_id=?',
+                        [deleteSessionId],
+                        (_, result) => {
+                          if (result.rowsAffected > 0) {
+                            Alert.alert('Session deleted successfully!');
+                          } else {
+                            Alert.alert('Error deleting session');
+                          }
+                        }
+                      );
                     } else {
                       Alert.alert('Error deleting session');
                     }
@@ -433,7 +433,6 @@ const Session = ({ route, navigation }: { route: any, navigation: any }) => {
                 );
               });
               fetchSession();
-
             } catch (error) {
               console.error('Error deleting Session:', error);
               Alert.alert('Error deleting Session');
@@ -443,6 +442,7 @@ const Session = ({ route, navigation }: { route: any, navigation: any }) => {
       ]
     );
   };
+  
 
   // Edit Session 
   // const for my dateTimePicker of edit session
@@ -490,11 +490,8 @@ const Session = ({ route, navigation }: { route: any, navigation: any }) => {
         (tex, res) => {
           if (res.rowsAffected === 1) {
             Alert.alert('Session updated successfully!');
-            console.log('Session updated');
           } else {
             Alert.alert('Error updating session');
-            console.log('Error updating session');
-            console.log(res);
           }
         }
       );
