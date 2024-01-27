@@ -182,7 +182,7 @@ const Home = ({ navigation }: { navigation: any }) => {
           if (res.rowsAffected == 1) {
             Alert.alert('Class added successfully!');
 
-            
+
 
           } else {
             Alert.alert('Error');
@@ -357,7 +357,7 @@ const Home = ({ navigation }: { navigation: any }) => {
                   'DELETE FROM table_session WHERE class_id=?',
                   'DELETE FROM table_presence WHERE class_id=?',
                 ];
-  
+
                 txn.executeSql(deleteClassQuery, [deleteClassId], (tx, res) => {
                   if (res.rowsAffected === 1) {
                     for (const query of deleteRelatedQueries) {
@@ -369,13 +369,13 @@ const Home = ({ navigation }: { navigation: any }) => {
                   }
                 });
               });
-  
+
               if (SelectedCollegeYear.length > 0) {
                 await collegeYearClass(SelectedCollegeYear);
               } else {
                 await fetchLastCollegeYear();
               }
-  
+
             } catch (error) {
               console.error('Error deleting class:', error);
               Alert.alert('Error deleting class. Please try again.');
@@ -385,7 +385,7 @@ const Home = ({ navigation }: { navigation: any }) => {
       ]
     );
   };
-  
+
 
   // fetch all data class from sqlite db
   useEffect(() => {

@@ -120,7 +120,7 @@ const Group = ({ route, navigation }: { route: any, navigation: any }) => {
   const searchGroup = () => {
     db.transaction((tx) => {
       tx.executeSql(
-        'SELECT * FROM table_group WHERE group_name LIKE ? OR group_type LIKE ? AND class_id=? ORDER BY class_id DESC',
+        'SELECT * FROM table_group WHERE (group_name LIKE ? OR group_type LIKE ? ) AND class_id=? ORDER BY class_id DESC',
         [`%${searchText}%`, `%${searchText}%`, class_id],
         (tx, results) => {
           var temp = [];
