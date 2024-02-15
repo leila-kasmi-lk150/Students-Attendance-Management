@@ -1,42 +1,24 @@
-# Students-Attendance-Management
+# Students Attendance Management App
 
 
-## Git and GitHup
+This project is a mobile application built with Expo and React to streamline the process of recording and managing student attendance. The app utilizes a SQLite database for data storage and retrieval.
 
-### In the first
-create file in your computer then open path of this file in git 
- ```
-cd <path_file>
- ```
-- Clone the Repository
+## Getting Started
 
-  **To start working on the project, clone the repository to your local machine(git):**
+### Prerequisites
 
-  ```
-  git clone https://github.com/lola-leila/Students-Attendance-Management.git
-  ```
-   ```
-   cd Students-Attendance-Management
-    ```
- ### if you make change
-  - Commit Changes
-    **After you make changes to the code, commit your changes with a clear and concise message:
-     ```
-     git add .
-      ```
-      ```
-      git commit -m "Description of changes"
-       ```
-      -Push Changes
-       ```
-        git push origin master
-       ```
-    ### Pull
-     *** if someone make changes and push it on master, you should pull the new version 
-     ```
-     git pull origin master
-      ```
+- Node.js and npm installed
+- Expo CLI installed globally (`npm install -g expo-cli`)
 
-    > **_NOTE:_**  we will only work on the master branch, so that you so not get confused.
-    
-    
+### Installation
+
+1. Clone the repository: `git clone https://github.com/leila-kasmi-lk150/Students-Attendance-Management.git`
+2. Navigate to the project folder: `cd Students-Attendance-Management`
+3. Install dependencies: `npm install`
+
+## Usage
+
+1. Start the Expo development server: `expo start`
+2. Open the Expo Go app on your mobile device.
+3. Scan the QR code displayed in the terminal to run the app on your device.
+
