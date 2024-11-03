@@ -22,3 +22,8 @@ This project is a mobile application built with Expo and React to streamline the
 2. Open the Expo Go app on your mobile device.
 3. Scan the QR code displayed in the terminal to run the app on your device.
 
+### Download the App
+
+You can download the app using the following link:
+
+**[Download here](https://drive.google.com/drive/folders/1ISPjXkmWPvsiaokkGc_viheX6ORQRyWo?usp=drive_link)**
